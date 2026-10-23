@@ -94,7 +94,7 @@ export const learningLevels: LearningLevel[] = [
   {
     id: 4,
     title: "Level 4",
-    subtitle: "Additional level — lesson content to be confirmed.",
+    subtitle: "Additional levels are planned. Lesson content is still being confirmed.",
     color: "yellow",
     lessons: [...unpublishedSlots],
   },

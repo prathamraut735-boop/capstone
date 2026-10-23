@@ -100,7 +100,7 @@ function ReviewDetail({ review, approved, feedback, onFeedbackChange, onMarkRevi
       <div className="teacher-panel-heading"><div><span className="eyebrow">SUBMISSION DETAIL · DEMO</span><h2>{review.learnerId}: {review.lesson}</h2></div><TeacherStatus>{review.status}</TeacherStatus></div>
       <p className="teacher-muted">{review.submitted} · Attempt {review.attempt}</p>
       <AudioPlaceholder />
-      <div className="teacher-ai-placeholder"><strong>AI-feedback placeholder — fictional only</strong><p>{review.aiDraft}</p><small>Any future AI draft must be checked by a teacher; it cannot approve progression.</small></div>
+      <div className="teacher-ai-placeholder"><strong>Fictional AI feedback placeholder</strong><p>{review.aiDraft}</p><small>A teacher must check any future AI-generated draft. It cannot approve progression.</small></div>
       {review.status === "Revision Requested" && !review.revisionSubmitted && (
         <div className="teacher-revision-callout">
           <strong>Waiting for another attempt</strong>

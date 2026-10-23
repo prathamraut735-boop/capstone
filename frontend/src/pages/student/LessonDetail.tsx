@@ -39,7 +39,7 @@ export default function LessonDetail() {
         </div>
         <div className="lesson-instructions">
           <div className="instruction-heading"><span className="instruction-badge"><Sparkles size={18} /></span><div><small>YOUR LESSON</small><h2>Let’s get started!</h2></div></div>
-          <p>Find a comfy spot, take your time, and give each activity a try. There’s no rush — learning music is all about exploring.</p>
+          <p>Find a comfy spot, take your time, and give each activity a try. There’s no rush. Learning music is all about exploring.</p>
           <div className="instruction-list">
             <div><span>1</span><p><strong>Watch the lesson</strong>Follow along with the video when it’s available.</p></div>
             <div><span>2</span><p><strong>Try it out</strong>Pause and practise the new idea in your own time.</p></div>

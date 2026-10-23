@@ -30,7 +30,7 @@ export default function Children() {
         </button>
       </div>
       {showDemoMessage && (
-        <div className="role-inline-message" role="status"><Link2 size={16} /> Demo only — no learner account was linked.</div>
+        <div className="role-inline-message" role="status"><Link2 size={16} /> Demo only. No learner account was linked.</div>
       )}
       <section className="role-panel child-safety-card">
         <span className="quick-link-icon pink"><UserRound size={18} /></span>

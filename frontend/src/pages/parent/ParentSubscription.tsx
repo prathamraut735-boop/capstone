@@ -24,7 +24,7 @@ export default function ParentSubscription() {
             <div className="subscription-manage-box">
               <strong>Management controls preview</strong>
               <p>Subscription changes are unavailable until eligibility and billing are confirmed.</p>
-              <div><button type="button" onClick={() => setMessage("Demo only — no subscription was changed.")}>Change plan</button><button type="button" onClick={() => setMessage("Demo only — no subscription was cancelled.")}>Cancel subscription</button></div>
+              <div><button type="button" onClick={() => setMessage("Demo only. No subscription was changed.")}>Change plan</button><button type="button" onClick={() => setMessage("Demo only. No subscription was cancelled.")}>Cancel subscription</button></div>
               {message && <span className="role-inline-message" role="status">{message}</span>}
             </div>
           )}

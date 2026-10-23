@@ -29,7 +29,7 @@ export default function Landing() {
         <div className="hero-copy">
           <span className="landing-kicker"><Sparkles size={15} /> A HAPPY PLACE TO MAKE MUSIC</span>
           <h1>Learn music,<br /><span>find your voice.</span></h1>
-          <p>Sing a new tune, strum a ukulele and discover the joy of making music — one little step at a time.</p>
+          <p>Sing a new tune, strum a ukulele, and discover the joy of making music, one little step at a time.</p>
           <div className="hero-actions">
             <Link className="button button-pink" to="/signup">Get started <ArrowRight size={16} /></Link>
             <a className="landing-secondary-link" href="#how-it-works">See how it works</a>

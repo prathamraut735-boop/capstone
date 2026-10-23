@@ -8,17 +8,17 @@ export default function Practice() {
   return (
     <div className="page-content">
       <PageHeading eyebrow="YOUR PRACTICE SPACE" title="My Practice">A calm place to try things out and share your progress with your teacher.</PageHeading>
-      <div className="privacy-banner"><ShieldCheck size={20} /><span><strong>Your practice stays private.</strong> Audio submissions are for your teacher only — no public sharing or student-to-student messaging.</span></div>
+      <div className="privacy-banner"><ShieldCheck size={20} /><span><strong>Your practice stays private.</strong> Audio submissions are for your teacher only. They are not shared publicly, and students cannot message one another.</span></div>
       <div className="practice-grid">
         <section className="panel upload-panel">
-          <div className="panel-heading-icon"><span className="upload-icon"><Mic2 size={21} /></span><div><h2>Record or add a practice</h2><p>Ready when you are — no need to get it perfect.</p></div></div>
+          <div className="panel-heading-icon"><span className="upload-icon"><Mic2 size={21} /></span><div><h2>Record or add a practice</h2><p>Ready when you are. It doesn't need to be perfect.</p></div></div>
           <button className="upload-zone" type="button" onClick={() => setDemoMessage(true)}>
             <span className="upload-round"><Upload size={21} /></span>
             <strong>Audio practice demo</strong>
             <span>This is a visual demo only. Recording and uploads are not enabled.</span>
             <span className="upload-formats"><FileAudio2 size={14} /> Audio only <i /> Up to 4 minutes</span>
           </button>
-          {demoMessage && <div className="inline-demo-message" role="status"><Check size={16} /> Demo only — no recording or files were uploaded.</div>}
+          {demoMessage && <div className="inline-demo-message" role="status"><Check size={16} /> Demo only. No recording or files were uploaded.</div>}
           <div className="upload-foot"><LockKeyhole size={15} /><span>Video uploads are not accepted. Your audio is private and teacher-reviewed.</span></div>
         </section>
         <aside className="practice-tip">

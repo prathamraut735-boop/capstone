@@ -47,7 +47,7 @@ export default function Login() {
         {demoReady && (
           <div className="demo-result" role="status">
             <span className="demo-result-icon"><LockKeyhole size={17} /></span>
-            <div><strong>Demo only — you are not logged in.</strong><p>No account was checked and no session was created.</p></div>
+            <div><strong>Demo only. You are not logged in.</strong><p>No account was checked and no session was created.</p></div>
             <Link to="/student/dashboard" className="button button-outline">Visit student demo <ArrowRight size={15} /></Link>
           </div>
         )}

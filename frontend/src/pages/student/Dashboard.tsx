@@ -80,7 +80,7 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-        <p className="example-note">Example activity only — no real recordings or student information are stored.</p>
+        <p className="example-note">Example activity only. No real recordings or student information are stored.</p>
       </section>
     </div>
   );

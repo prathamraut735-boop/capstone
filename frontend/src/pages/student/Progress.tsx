@@ -25,11 +25,11 @@ export default function Progress() {
             </div>
           ))}
         </div>
-        <p className="example-note">Sample indicators only — lesson completion is not saved between visits.</p>
+        <p className="example-note">Sample indicators only. Lesson completion is not saved between visits.</p>
       </section>
       <section className="approval-card">
         <span className="approval-icon"><LockKeyhole size={21} /></span>
-        <div className="approval-copy"><span className="eyebrow">LEVEL PROGRESSION</span><h2>Your teacher is your guide</h2><p>Moving to the next level needs teacher approval. You won't unlock levels automatically — your teacher will let you know when you're ready.</p></div>
+        <div className="approval-copy"><span className="eyebrow">LEVEL PROGRESSION</span><h2>Your teacher is your guide</h2><p>Moving to the next level requires teacher approval. You won't unlock levels automatically. Your teacher will let you know when you're ready.</p></div>
         <StatusPill tone="yellow">Teacher approval required</StatusPill>
       </section>
       <section className="panel feedback-panel">

@@ -6,7 +6,7 @@ export default function TeacherLearnerNeeds() {
   return (
     <>
       <RolePageHeading eyebrow="RESTRICTED STAFF VIEW · DEMO DATA" title="Learner needs" description="A limited visual example of relevant support notes for assigned sessions." />
-      <div className="teacher-restricted-banner"><LockKeyhole size={20} /><div><strong>Restricted information — authorised staff only</strong><p>This frontend does not enforce access permissions. Production requires approved role controls and privacy procedures.</p></div></div>
+      <div className="teacher-restricted-banner"><LockKeyhole size={20} /><div><strong>Restricted information. Authorised staff only.</strong><p>This frontend does not enforce access permissions. Production requires approved role controls and privacy procedures.</p></div></div>
       <DemoNote tone="yellow">These are carefully limited, entirely fictional support-note placeholders. This screen is not an access-control system.</DemoNote>
       <div className="teacher-needs-list">
         {restrictedNeedsSamples.map((record) => (

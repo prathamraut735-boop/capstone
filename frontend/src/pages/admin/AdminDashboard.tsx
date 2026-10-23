@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   return (
     <div className="role-content">
       <RolePageHeading eyebrow="ADMIN OVERVIEW" title="Platform overview" description="A structured overview of example content and activity for the Toy Choir TV demo." />
-      <DemoNote>All figures and activity shown here are fictional demo data — they are not live platform statistics or security records.</DemoNote>
+      <DemoNote>All figures and activity shown here are fictional demo data. They are not live platform statistics or security records.</DemoNote>
       <div className="admin-stat-grid">
         {overviewStats.map(({ label, value, icon: Icon, color }) => (
           <div className="admin-stat-card" key={label}><span className={`admin-stat-icon ${color}`}><Icon size={18} /></span><span className="admin-stat-label">{label}</span><strong>{value}</strong><small>Demo figure</small></div>

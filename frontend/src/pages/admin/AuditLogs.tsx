@@ -6,7 +6,7 @@ export default function AuditLogs() {
   return (
     <div className="role-content">
       <RolePageHeading eyebrow="VISUAL ACTIVITY PREVIEW" title="Audit logs" description="A fictional activity list to preview a future administrative audit interface." />
-      <DemoNote tone="yellow">This is a visual demo only — it is not a real security audit log and does not record user activity.</DemoNote>
+      <DemoNote tone="yellow">This is a visual demo only. It is not a real security audit log and does not record user activity.</DemoNote>
       <section className="role-panel admin-list-panel">
         <div className="role-panel-heading"><div><span className="eyebrow">SAMPLE EVENTS</span><h2>Recent activity records</h2></div><span className="role-icon-chip purple"><Activity size={17} /></span></div>
         <DataTable
