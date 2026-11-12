@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { Menu, Music2, X, type LucideIcon } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { LogOut, Menu, Music2, X, type LucideIcon } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Brand from "../components/Brand";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { auth } from "../firebase";
+import { getFirebaseAuthErrorMessage } from "../firebaseAuthErrors";
 
 type RoleNavItem = {
   label: string;
@@ -18,8 +21,32 @@ type Props = {
 
 export default function RoleDashboardLayout({ role, title, navigation, variant }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [logoutError, setLogoutError] = useState("");
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const pageTitle = navigation.find((item) => item.to === location.pathname)?.label ?? title;
+
+  useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  async function handleLogout() {
+    setLogoutError("");
+    setIsSigningOut(true);
+
+    try {
+      await signOut(auth);
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setLogoutError(getFirebaseAuthErrorMessage(error));
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
+  const accountName = user?.displayName || user?.email || "Signed-in account";
+  const accountDetail = user?.displayName && user.email ? user.email : "Firebase account";
+  const accountInitial = accountName.charAt(0).toUpperCase();
 
   return (
     <div className={`role-app role-app-${variant}`}>
@@ -53,9 +80,18 @@ export default function RoleDashboardLayout({ role, title, navigation, variant }
           ))}
         </nav>
         <div className="role-sidebar-foot">
-          <span className="role-demo-indicator" />
-          <span>Demo workspace<br /><small>No live account data</small></span>
+          <span className="role-account-avatar" aria-hidden="true">{user ? accountInitial : "?"}</span>
+          <span className="role-account-details">
+            <strong>{user ? accountName : "Not signed in"}</strong>
+            <small>{user ? accountDetail : <Link to="/login">Log in to your account</Link>}</small>
+          </span>
+          {user && (
+            <button className="role-logout-button" type="button" onClick={handleLogout} disabled={isSigningOut} aria-label="Log out" title="Log out">
+              <LogOut size={15} />
+            </button>
+          )}
         </div>
+        {logoutError && <p className="role-logout-error" role="alert">{logoutError}</p>}
       </aside>
       <main className="role-main">
         <header className="role-topbar">

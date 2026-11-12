@@ -1,11 +1,19 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import Brand from "../../components/Brand";
+import { auth } from "../../firebase";
+import { getFirebaseAuthErrorMessage } from "../../firebaseAuthErrors";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { saveUserProfile } from "../../userProfile";
+import { getCurrentUserProfile } from "../../backendApi";
 
 export default function Signup() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [createdDemo, setCreatedDemo] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   function validatePasswordMatch(event: ChangeEvent<HTMLInputElement>) {
     const form = event.currentTarget.form;
@@ -20,12 +28,16 @@ export default function Signup() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setAuthError("");
+    setAccountCreated(false);
     const form = event.currentTarget;
     const values = new FormData(form);
-    const password = values.get("password");
-    const confirmation = values.get("confirmPassword");
+    const fullName = String(values.get("fullName") ?? "").trim();
+    const email = String(values.get("email") ?? "").trim();
+    const password = String(values.get("password") ?? "");
+    const confirmation = String(values.get("confirmPassword") ?? "");
     const confirmationInput = form.elements.namedItem("confirmPassword");
 
     if (confirmationInput instanceof HTMLInputElement && password !== confirmation) {
@@ -34,8 +46,51 @@ export default function Signup() {
       return;
     }
 
-    setCreatedDemo(true);
-    form.reset();
+    setIsSubmitting(true);
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      let profileUpdateError = "";
+      try {
+        await updateProfile(credential.user, { displayName: fullName });
+      } catch (error) {
+        profileUpdateError = getFirebaseAuthErrorMessage(error);
+      }
+
+      try {
+        await saveUserProfile(credential.user, fullName);
+      } catch (error) {
+        setAccountCreated(true);
+        const profileError = getFirebaseAuthErrorMessage(error);
+        setAuthError(
+          `Your account was created, but its Firestore profile could not be saved. Log in to try syncing it again. ${profileError}`,
+        );
+        return;
+      }
+
+      try {
+        await getCurrentUserProfile(credential.user);
+      } catch (error) {
+        setAccountCreated(true);
+        setAuthError(
+          `Your account and Firestore profile were created, but the backend profile request failed. ${getFirebaseAuthErrorMessage(error)}`,
+        );
+        return;
+      }
+
+      if (profileUpdateError) {
+        setAccountCreated(true);
+        setAuthError(
+          `Your account and Firestore profile were created, but we couldn't update your authentication profile. ${profileUpdateError}`,
+        );
+        return;
+      }
+
+      navigate("/parent/dashboard", { replace: true });
+    } catch (error) {
+      setAuthError(getFirebaseAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -46,16 +101,8 @@ export default function Signup() {
           <span className="auth-welcome-icon signup-icon"><ShieldCheck size={18} /></span>
           <span className="eyebrow">PARENT OR GUARDIAN</span>
           <h1>Create a parent account</h1>
-          <p>This public demo shows the planned guardian signup flow. Student and staff accounts are not created here.</p>
+          <p>Create an account to continue to the parent area.</p>
         </div>
-        {createdDemo ? (
-          <div className="signup-success" role="status">
-            <CheckCircle2 size={27} />
-            <h2>Thanks for exploring!</h2>
-            <p>This was a demonstration only. No account was created and no information was sent to a server.</p>
-            <button className="button button-outline" type="button" onClick={() => setCreatedDemo(false)}>Back to signup form</button>
-          </div>
-        ) : (
           <form className="auth-form signup-form" onSubmit={handleSubmit}>
             <label className="form-field">
               <span>Full name</span>
@@ -82,9 +129,10 @@ export default function Signup() {
               <input id="signup-consent" type="checkbox" name="consent" required />
               <span><label htmlFor="signup-consent">I confirm I am a parent or guardian and agree to the</label> <a href="#terms">Terms</a> and <a href="#privacy">Privacy Policy</a> (placeholders).</span>
             </div>
-            <button className="button button-pink auth-submit" type="submit">Create account <ArrowRight size={16} /></button>
+            {authError && <p className="auth-error-message" role="alert">{authError}</p>}
+            {accountCreated && <Link className="button button-outline auth-submit" to="/parent/dashboard">Continue to parent area <ArrowRight size={16} /></Link>}
+            {!accountCreated && <button className="button button-pink auth-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating account..." : "Create account"} {!isSubmitting && <ArrowRight size={16} />}</button>}
           </form>
-        )}
         <p className="auth-switch">Already have an account? <Link to="/login">Log in</Link></p>
         <Link className="auth-back" to="/"><ArrowLeft size={15} /> Back to home</Link>
       </div>

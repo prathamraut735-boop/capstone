@@ -1,1 +1,7 @@
 FRONTEND_GAP_AUDIT.md
+backend/.env
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/serviceKey.json
+*.py[cod]
