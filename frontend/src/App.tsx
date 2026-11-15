@@ -5,6 +5,7 @@ import PublicLayout from "./layouts/PublicLayout";
 import StudentLayout from "./layouts/StudentLayout";
 import TeacherLayout from "./layouts/TeacherLayout";
 import Landing from "./pages/public/Landing";
+import ForgotPassword from "./pages/public/ForgotPassword";
 import Login from "./pages/public/Login";
 import NotFound from "./pages/public/NotFound";
 import Signup from "./pages/public/Signup";
@@ -39,6 +40,7 @@ export default function App() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="*" element={<NotFound />} />
       </Route>

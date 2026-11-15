@@ -7,7 +7,6 @@ import { getFirebaseAuthErrorMessage } from "../../firebaseAuthErrors";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
-  sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
 } from "firebase/auth";
@@ -21,12 +20,10 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
-    setStatusMessage("");
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
@@ -41,26 +38,6 @@ export default function Login() {
       await saveUserProfile(credential.user);
       await getCurrentUserProfile(credential.user);
       navigate("/parent/dashboard", { replace: true });
-    } catch (error) {
-      setAuthError(getFirebaseAuthErrorMessage(error));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    setAuthError("");
-    setStatusMessage("");
-
-    if (!email.trim()) {
-      setStatusMessage("Enter your email address above to receive a password reset link.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await sendPasswordResetEmail(auth, email.trim());
-      setStatusMessage("If an account exists for this address, a password reset email has been sent.");
     } catch (error) {
       setAuthError(getFirebaseAuthErrorMessage(error));
     } finally {
@@ -94,9 +71,8 @@ export default function Login() {
           </div>
           <div className="form-options">
             <label className="checkbox-field"><input type="checkbox" name="remember" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} /> <span>Remember me</span></label>
-            <button className="forgot-link" type="button" onClick={handlePasswordReset} disabled={isSubmitting}>Forgot password?</button>
+            <Link className="forgot-link" to="/forgot-password">Forgot password?</Link>
           </div>
-          {statusMessage && <p className="form-helper-message" role="status">{statusMessage}</p>}
           {authError && <p className="auth-error-message" role="alert">{authError}</p>}
           <button className="button button-pink auth-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Log in"} {!isSubmitting && <ArrowRight size={16} />}</button>
         </form>

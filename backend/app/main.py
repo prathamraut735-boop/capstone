@@ -144,7 +144,7 @@ def get_authenticated_user(
     return claims
 
 
-@app.get("/health")
+@app.get("/")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
 

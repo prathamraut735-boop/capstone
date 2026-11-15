@@ -7,7 +7,7 @@ export interface UserProfile {
   role: string | null;
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "https://capstone-gq7h.onrender.com/").replace(/\/+$/, "");
 
 export async function getCurrentUserProfile(user: User): Promise<UserProfile> {
   const token = await user.getIdToken();

@@ -580,11 +580,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
 .checkbox-field { display: flex; align-items: flex-start; gap: 8px; color: #716d82; font-size: 9px; line-height: 1.5; }
 .consent-field label { color: inherit; }
 .checkbox-field input { width: 14px; height: 14px; flex: 0 0 auto; margin: 1px 0 0; accent-color: var(--purple); }
-.forgot-link { padding: 0; color: var(--purple); border: 0; background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; }
+.forgot-link { padding: 0; color: var(--purple); background: transparent; font-size: 9px; font-weight: 700; text-decoration: none; cursor: pointer; }
 .form-helper-message { margin: -5px 0 0; color: #8a6500; font-size: 9px; }
 .auth-error-message { margin: -5px 0 0; color: #b42318; font-size: 9px; line-height: 1.5; }
 .auth-submit { width: 100%; min-height: 43px; }
-.auth-submit:disabled, .forgot-link:disabled { opacity: .65; cursor: wait; }
+.auth-submit:disabled { opacity: .65; cursor: wait; }
 .auth-switch { margin: 19px 0 0; color: #898598; text-align: center; font-size: 9px; }
 .auth-switch a, .consent-field a { color: var(--purple); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .auth-back { width: fit-content; display: flex; align-items: center; gap: 6px; margin: 19px auto 0; color: #868296; font-size: 9px; font-weight: 600; }
