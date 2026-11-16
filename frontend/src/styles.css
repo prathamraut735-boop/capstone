@@ -55,6 +55,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
 .topbar > div > strong { font-size: 12px; }
 .topbar-right { display: flex; align-items: center; gap: 14px; }
 .topbar-note { color: #87849b; font-size: 11px; }
+.student-logout-button { padding: 7px 10px; color: #514d68; border: 1px solid #e7e4ec; border-radius: 8px; background: white; font-size: 9px; font-weight: 700; cursor: pointer; }
+.student-logout-button:hover { border-color: #c9c1e6; background: #faf9ff; }
 .mobile-header { display: none; }
 .page-content { max-width: 1190px; padding: 34px 45px 60px; margin: 0 auto; }
 .page-heading { margin: 0 0 25px; }
@@ -809,6 +811,33 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
 .child-profile-avatar { width: 44px; height: 44px; font-size: 20px; }
 .child-profile-card h2 { margin: 13px 0 4px; font-family: "Fredoka",sans-serif; font-size: 17px; }
 .child-profile-card > p { min-height: 28px; margin: 0; color: #817d91; font-size: 8px; line-height: 1.5; }
+.child-add-panel, .child-empty-state, .booking-empty-state { padding: 17px; }
+.child-add-form { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 12px; }
+.child-profile-form { grid-template-columns: repeat(2, minmax(0,1fr)); align-items: start; }
+.child-add-form .form-field { margin: 0; }
+.child-profile-form .form-field input:not([type="checkbox"]), .child-profile-form .form-field select { min-height: 38px; padding: 0 10px; color: #514d68; border: 1px solid #e7e4ec; border-radius: 9px; background: white; font: inherit; font-size: 9px; font-weight: 400; }
+.child-profile-form .form-field input[type="file"] { padding: 8px; }
+.child-interest-options { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; padding: 8px 10px; border: 1px solid #e7e4ec; border-radius: 9px; }
+.child-interest-options legend { padding: 0 4px; color: #514d68; font-size: 9px; font-weight: 700; }
+.child-interest-options legend small { color: #9995a6; font-size: 8px; font-weight: 500; }
+.child-interest-options .checkbox-field { align-items: center; }
+.child-photo-field, .child-interest-options, .child-form-actions { grid-column: 1 / -1; }
+.child-form-actions, .child-card-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.child-add-form .button, .child-remove-button { min-height: 35px; font-size: 8px; }
+.child-remove-button { margin-top: 13px; }
+.child-profile-photo { object-fit: cover; }
+.child-profile-inactive { opacity: .8; }
+.child-platform-details { display: grid; gap: 4px; margin: 9px 0; color: #77748a; font-size: 8px; line-height: 1.5; }
+.child-platform-details strong { color: #49455f; }
+.child-card-actions .button { min-height: 31px; padding: 0 8px; font-size: 8px; }
+.student-invitation-card { display: grid; gap: 6px; margin-top: 12px; padding: 11px; border: 1px solid #d6efe7; border-radius: 10px; background: #f3fbf8; color: #4e675d; font-size: 8px; line-height: 1.5; overflow-wrap: anywhere; }
+.student-invitation-card code { display: block; padding: 8px; border-radius: 7px; background: white; color: #25204f; font-size: 9px; user-select: all; }
+.student-invitation-card > a { color: #21775e; font-weight: 700; }
+.child-empty-state, .booking-empty-state { color: #77748a; text-align: center; }
+.child-empty-state .quick-link-icon { margin: 0 auto; }
+.child-empty-state h2, .booking-empty-state h3 { margin: 8px 0 4px; font-family: "Fredoka",sans-serif; font-size: 15px; }
+.child-empty-state p, .booking-empty-state p { margin: 0; color: #858194; font-size: 9px; line-height: 1.6; }
+.booking-empty-state > svg { color: var(--teal); }
 .child-card-progress { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; }
 .child-card-progress strong, .child-card-progress small { display: block; }
 .child-card-progress strong { font-size: 8px; }
@@ -849,7 +878,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
 .summary-session span { color: #7c788d; font-size: 8px; }
 .booking-learner-select { margin-top: 13px; }
 .booking-learner-select select, .admin-filter select { min-height: 35px; padding: 0 9px; color: #5d5970; border: 1px solid #e8e5ed; border-radius: 8px; background: white; font-size: 8px; }
+.booking-simulation-consent { align-items: flex-start; margin-top: 12px; color: #6f6b7e; font-size: 8px; line-height: 1.5; }
+.booking-simulation-consent input { flex: 0 0 auto; margin-top: 1px; }
+.booking-no-learners { display: grid; gap: 8px; margin-top: 13px; }
+.booking-no-learners p { margin: 0; color: #77748a; font-size: 8px; line-height: 1.5; }
+.booking-no-learners .button { min-height: 34px; font-size: 8px; }
 .booking-confirm-button { width: 100%; min-height: 36px; margin-top: 12px; font-size: 9px; }
+.booking-history-detail { flex: 1; min-width: 0; }
+.booking-cancel-button { min-height: 30px; padding: 0 8px; font-size: 8px; }
 .empty-summary { padding: 18px 10px; color: #8b8798; border-radius: 10px; background: #faf9fc; text-align: center; font-size: 9px; line-height: 1.6; }
 .booking-summary .role-example-caption { font-size: 7px; }
 .booking-history { padding: 17px; }
@@ -1170,6 +1206,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
   .quick-link-grid { grid-template-columns: 1fr; }
   .quick-link-grid > a { min-height: 55px; }
   .children-grid { grid-template-columns: 1fr; }
+  .child-add-form, .child-profile-form { grid-template-columns: 1fr; }
+  .child-photo-field, .child-interest-options, .child-form-actions { grid-column: auto; }
   .link-child-placeholder { min-height: 165px; }
   .child-safety-card { align-items: flex-start; }
   .booking-details { grid-template-columns: 1fr; }

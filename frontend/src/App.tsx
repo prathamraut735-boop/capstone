@@ -9,6 +9,8 @@ import ForgotPassword from "./pages/public/ForgotPassword";
 import Login from "./pages/public/Login";
 import NotFound from "./pages/public/NotFound";
 import Signup from "./pages/public/Signup";
+import StudentLogin from "./pages/public/StudentLogin";
+import StudentActivate from "./pages/public/StudentActivate";
 import Dashboard from "./pages/student/Dashboard";
 import LessonDetail from "./pages/student/LessonDetail";
 import Lessons from "./pages/student/Lessons";
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/student/login" element={<StudentLogin />} />
+        <Route path="/student/activate" element={<StudentActivate />} />
         <Route path="*" element={<NotFound />} />
       </Route>
 

@@ -19,7 +19,7 @@ const navigation = [
   { label: "My Profile", to: "/student/profile", icon: CircleUserRound },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ studentName }: { studentName: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -67,8 +67,8 @@ export default function Sidebar() {
           <span>Keep learning at your own pace.</span>
         </div>
         <div className="sidebar-footer">
-          <span className="avatar avatar-small">S</span>
-          <span><strong>Sunny Student</strong><small>My learning space</small></span>
+          <span className="avatar avatar-small">{studentName.charAt(0).toUpperCase()}</span>
+          <span><strong>{studentName}</strong><small>My learning space</small></span>
           <span className="online-dot" aria-label="Online" />
         </div>
       </aside>

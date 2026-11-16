@@ -113,9 +113,13 @@ AI-assisted analysis is planned for appropriate music-learning tasks. AI feedbac
 
 The future platform will support guardian-linked learner accounts, consent and permissions, free access for verified in-person members or scholarship learners, and monthly subscriptions for other eligible families.
 
-Subscription checkout, payment handling and cancellation will be implemented during a later development stage.
+Subscription checkout, real payment handling and subscription cancellation will be implemented during a later development stage.
 
 ### 5.4 In-Person Session Bookings
+
+The parent booking pages now use authenticated API-backed session availability
+and booking records. Checkout records a simulated payment only (no charge), but
+a confirmed booking does reserve a real place and reduce session capacity.
 
 The planned booking journey includes:
 - Viewing available sessions.
@@ -148,9 +152,20 @@ The application should use a clear folder structure and reusable components.
 
 ## 7. Backend and External Services
 
-Backend development will happen later, after the frontend structure and user journeys have been reviewed.
+Most backend development remains future work, but the parent learner-profile
+and session-booking journeys now use authenticated FastAPI and Cloud Firestore
+endpoints.
 
-The eventual backend will need to support authentication, guardian-learner relationships, permissions, database records, private audio storage, AI processing, subscriptions, payments, bookings and teacher operations.
+The eventual backend will need to support verified guardian-learner account
+relationships, consent, permissions, private audio storage, AI processing,
+subscriptions, real payments and teacher operations. Current parent learner
+profiles collect first name and age range, with optional preferred name,
+musical experience, learning interests and private profile picture. Each
+learner profile belongs to the authenticated guardian. Parent-issued
+single-use, expiring invitations create separate Firebase student credentials;
+students cannot independently create accounts or change their parent link.
+Session availability is published through an administrator-only API and starts
+empty until configured.
 
 The final backend technology and service providers have not yet been confirmed.
 
@@ -238,8 +253,8 @@ The client plan also requires Australian data storage and appropriate vendor ass
 During frontend development:
 
 1. Use fictional sample data.
-2. Do not connect to a real database yet.
-3. Do not implement real authentication or payments yet.
+2. Use fictional sample data for features that do not yet have an approved backend workflow. Parent-owned learner profiles, private profile pictures and invited student access use the approved authenticated backend.
+3. Keep guardian and student credentials separate in Firebase. Do not treat simulated booking payment as a real charge or integrate a payment provider without approval.
 4. Do not upload or store real learner recordings.
 5. Do not claim AI feedback is working when it is only sample data.
 6. Keep frontend code organised and beginner-friendly.

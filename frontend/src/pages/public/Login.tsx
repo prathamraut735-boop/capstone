@@ -11,7 +11,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { saveUserProfile } from "../../userProfile";
-import { getCurrentUserProfile } from "../../backendApi";
+import { getCurrentUserProfile, getStudentProfile, isStudentAuthEmail } from "../../backendApi";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,6 +35,11 @@ export default function Login() {
         rememberMe ? browserLocalPersistence : browserSessionPersistence,
       );
       const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (isStudentAuthEmail(credential.user.email)) {
+        await getStudentProfile(credential.user);
+        navigate("/student/dashboard", { replace: true });
+        return;
+      }
       await saveUserProfile(credential.user);
       await getCurrentUserProfile(credential.user);
       navigate("/parent/dashboard", { replace: true });

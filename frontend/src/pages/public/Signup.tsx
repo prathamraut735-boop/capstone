@@ -6,7 +6,6 @@ import { auth } from "../../firebase";
 import { getFirebaseAuthErrorMessage } from "../../firebaseAuthErrors";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { saveUserProfile } from "../../userProfile";
-import { getCurrentUserProfile } from "../../backendApi";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -63,16 +62,6 @@ export default function Signup() {
         const profileError = getFirebaseAuthErrorMessage(error);
         setAuthError(
           `Your account was created, but its Firestore profile could not be saved. Log in to try syncing it again. ${profileError}`,
-        );
-        return;
-      }
-
-      try {
-        await getCurrentUserProfile(credential.user);
-      } catch (error) {
-        setAccountCreated(true);
-        setAuthError(
-          `Your account and Firestore profile were created, but the backend profile request failed. ${getFirebaseAuthErrorMessage(error)}`,
         );
         return;
       }
