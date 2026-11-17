@@ -34,9 +34,9 @@ export default function ForgotPassword() {
         <Brand className="brand auth-brand" />
         <div className="auth-heading">
           <span className="auth-welcome-icon"><KeyRound size={18} /></span>
-          <span className="eyebrow">ACCOUNT RECOVERY</span>
+          <span className="eyebrow">PARENT ACCOUNT RECOVERY</span>
           <h1>Forgot your password?</h1>
-          <p>Enter the email address linked to your account and we’ll send you a password reset link.</p>
+          <p>Enter the email address linked to your parent account and we’ll send you a password reset link.</p>
         </div>
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="form-field">

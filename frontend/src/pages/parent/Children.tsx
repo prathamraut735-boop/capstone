@@ -7,6 +7,7 @@ import {
   deleteParentLearnerProfilePicture,
   getParentLearnerProfilePicture,
   getParentLearners,
+  resetStudentPassword,
   uploadParentLearnerProfilePicture,
   updateParentLearner,
   type ParentLearner,
@@ -48,6 +49,7 @@ export default function Children() {
   const [form, setForm] = useState<LearnerForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [invitation, setInvitation] = useState<(StudentInvitation & { learnerId: string }) | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState<{ learnerId: string; password: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [busyLearnerId, setBusyLearnerId] = useState<string | null>(null);
@@ -237,6 +239,7 @@ export default function Children() {
       const updated = await updateParentLearner(user, learner.id, { status: nextStatus });
       setLearners((current) => current.map((item) => (item.id === learner.id ? updated : item)));
       setInvitation(null);
+      setTemporaryPassword(null);
       setNotice(nextStatus === "deactivated" ? "Learner profile and student access deactivated." : "Learner profile reactivated.");
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Unable to update learner access.");
@@ -251,6 +254,7 @@ export default function Children() {
     setError("");
     setNotice("");
     setInvitation(null);
+    setTemporaryPassword(null);
     try {
       const created = await createStudentInvitation(user, learner.id);
       setInvitation({ ...created, learnerId: learner.id });
@@ -259,6 +263,23 @@ export default function Children() {
       setNotice("Share this one-time code with the learner. It expires in 24 hours.");
     } catch (inviteError) {
       setError(inviteError instanceof Error ? inviteError.message : "Unable to create student access.");
+    } finally {
+      setBusyLearnerId(null);
+    }
+  }
+
+  async function handleResetStudentPassword(learner: ParentLearner) {
+    if (!user) return;
+    setBusyLearnerId(learner.id);
+    setError("");
+    setNotice("");
+    setTemporaryPassword(null);
+    try {
+      const reset = await resetStudentPassword(user, learner.id);
+      setTemporaryPassword({ learnerId: learner.id, password: reset.temporaryPassword });
+      setNotice("Share this temporary password with the learner. It is shown only once.");
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Unable to reset the student password.");
     } finally {
       setBusyLearnerId(null);
     }
@@ -405,7 +426,7 @@ export default function Children() {
                     <span>Practice: {learner.practiceSubmissionStatus}</span>
                     <span>Teacher approval: {learner.teacherApprovalStatus}</span>
                     <span>Teacher: {learner.assignedTeacher || "Not assigned"}</span>
-                    {learner.studentUsername && <span>Student username: <strong>{learner.studentUsername}</strong></span>}
+                    <span>Student ID: <strong>{learner.studentId}</strong></span>
                     {learner.accessStatus === "invitation_pending" && learner.invitationExpiresAt && (
                       <span>Invitation expires: {new Date(learner.invitationExpiresAt).toLocaleString()}</span>
                     )}
@@ -422,6 +443,16 @@ export default function Children() {
                         disabled={busyLearnerId !== null}
                       >
                         <KeyRound size={14} /> {busyLearnerId === learner.id ? "Creating..." : "Create student access"}
+                      </button>
+                    )}
+                    {learner.accountStatus === "active" && learner.accessStatus === "active" && (
+                      <button
+                        className="button button-outline"
+                        type="button"
+                        onClick={() => void handleResetStudentPassword(learner)}
+                        disabled={busyLearnerId !== null}
+                      >
+                        <KeyRound size={14} /> {busyLearnerId === learner.id ? "Resetting..." : "Reset student password"}
                       </button>
                     )}
                     <button
@@ -446,10 +477,20 @@ export default function Children() {
                   {invitation?.learnerId === learner.id && (
                     <div className="student-invitation-card" role="status">
                       <strong>Share with the learner once</strong>
-                      <span>Student username: <b>{invitation.username}</b></span>
+                      <span>Student ID: <b>{invitation.studentId}</b></span>
                       <code>{invitation.code}</code>
                       <small>Expires {new Date(invitation.expiresAt).toLocaleString()}. The code cannot be shown again; create a new one if it is lost.</small>
-                      <Link to="/student/activate">Open student activation page</Link>
+                      <Link to="/student/activate" target="_blank" rel="noopener noreferrer">
+                        Open student activation page
+                      </Link>
+                    </div>
+                  )}
+                  {temporaryPassword?.learnerId === learner.id && (
+                    <div className="student-invitation-card" role="status">
+                      <strong>Share this temporary password with the learner once</strong>
+                      <span>Student ID: <b>{learner.studentId}</b></span>
+                      <code>{temporaryPassword.password}</code>
+                      <small>The temporary password is not saved and cannot be shown again.</small>
                     </div>
                   )}
                 </article>

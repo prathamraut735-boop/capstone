@@ -1,18 +1,19 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithCustomToken } from "firebase/auth";
 import Brand from "../../components/Brand";
-import { activateStudentInvitation, getStudentAuthEmail, getStudentProfile } from "../../backendApi";
+import { activateStudentInvitation, getStudentProfile, loginStudent } from "../../backendApi";
 import { auth } from "../../firebase";
 import { getFirebaseAuthErrorMessage } from "../../firebaseAuthErrors";
 
 export default function StudentActivate() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,13 +27,11 @@ export default function StudentActivate() {
 
     setIsSubmitting(true);
     try {
-      const activation = await activateStudentInvitation(code.trim(), password);
+      const activation = await activateStudentInvitation(code.trim(), username.trim(), password);
+      setStudentId(activation.studentId);
       setUsername(activation.username);
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        getStudentAuthEmail(activation.username),
-        password,
-      );
+      const login = await loginStudent(activation.username, password);
+      const credential = await signInWithCustomToken(auth, login.customToken);
       await getStudentProfile(credential.user);
       navigate("/student/dashboard", { replace: true });
     } catch (activationError) {
@@ -64,6 +63,22 @@ export default function StudentActivate() {
             />
           </label>
           <label className="form-field">
+            <span>Choose a username</span>
+            <input
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              minLength={3}
+              maxLength={20}
+              pattern="[A-Za-z0-9_]{3,20}"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              required
+            />
+            <small>Use 3-20 letters, numbers, or underscores. You can sign in with this or your Student ID.</small>
+          </label>
+          <label className="form-field">
             <span>Create a password</span>
             <input
               type="password"
@@ -86,9 +101,9 @@ export default function StudentActivate() {
             />
           </label>
           {error && <p className="auth-error-message" role="alert">{error}</p>}
-          {username && (
+          {studentId && (
             <p className="form-helper-message" role="status">
-              Your student username is <strong>{username}</strong>. Keep it safe for future sign-ins.
+              Your username is <strong>{username}</strong>. You can also sign in with Student ID <strong>{studentId}</strong>.
             </p>
           )}
           <button className="button button-pink auth-submit" type="submit" disabled={isSubmitting}>

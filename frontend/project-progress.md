@@ -17,7 +17,7 @@
 - [x] Add form validation, password visibility controls, remembered/session login persistence and password reset emails.
 - [x] Add parent dashboard, learner cards, booking demo, subscription placeholder and parent settings.
 - [x] Add authenticated parent learner profile create/list/edit/deactivate flows with required first name/age range, optional approved profile fields, and private profile pictures.
-- [x] Add parent-created one-time student activation invitations and separate student username/password sign-in backed by Firebase Auth.
+- [x] Add parent-created one-time student activation invitations and separate Student ID/password sign-in backed by Firebase Auth.
 - [x] Add API-backed upcoming session availability, booking history, reservation/capacity management and cancellation; checkout records simulated payment only.
 - [x] Add admin overview, user list, content management demo, entitlements, support queue and audit-log preview.
 - [x] Add responsive parent and admin navigation layouts with separate role-specific sections.
@@ -32,7 +32,7 @@
 - [x] Verify Firebase ID tokens and expose `GET /api/v1/users/me` for the signed-in user's `users/{uid}` profile.
 - [x] Add parent-only learner and booking endpoints, an authenticated session catalog, and an admin-only session publishing endpoint.
 - [x] Add parent-scoped learner create/list/edit/deactivate and private picture endpoints; platform-owned learner status/progress fields cannot be set by parents.
-- [x] Add single-use, 24-hour student invitations, generated student usernames, separate Firebase Auth credentials, and server-verified student-to-learner identity.
+- [x] Add transactional Student ID assignment, single-use 24-hour invitations, separate Firebase Auth credentials, server-verified Student ID login, and parent-managed temporary password resets.
 - [x] Reserve and release session capacity with Firestore transactions; simulated checkout does not charge money.
 - [x] Configure explicit CORS origins, local environment examples, and backend API tests.
 - [ ] Deploy the backend and configure its production frontend origin and API URL.
@@ -50,7 +50,7 @@
 
 Student learning content, lessons, progress, feedback and practice submissions remain fictional examples. Parent email/password accounts use Firebase Authentication; enable the Email/Password provider and configure authorized domains before deployment. Signup saves a parent profile to Firestore, and login creates or syncs the signed-in user's `users/{uid}` profile. Firestore rules are configured through the root `firebase.json`; users can access only their own profile and cannot change their role. Deploy them with `firebase deploy --only firestore:rules`. The FastAPI backend verifies Firebase ID tokens. Parent learner and booking endpoints enforce the role stored in the user's profile; administrator session publishing requires a profile whose role was provisioned by a trusted administrator.
 
-Parent-owned learner profiles store required first name and age range plus the approved optional profile fields. Learner IDs and parent IDs are assigned by the backend. Parent-issued activation codes are single-use, expire after 24 hours, and are stored only as hashes; activation creates a separate Firebase student account with a platform-generated username. Student routes require an active backend-verified student-to-learner link. Profile pictures are limited to JPEG/PNG/WebP under 2 MB and served through authenticated API responses. Student learning data, dashboard feedback and teacher assignments are still sample or unpopulated data. The parent dashboard, subscription, settings, administrator and teacher pages remain demonstrations. Guardian identity verification/consent, student password recovery, payment processing, recording/upload, AI feedback and subscription billing are not implemented.
+Parent-owned learner profiles store required first name and age range plus the approved optional profile fields. Learner IDs, Student IDs and parent IDs are assigned by the backend. Parent-issued activation codes are single-use, expire after 24 hours, and are stored only as hashes; activation creates a separate Firebase student account with an unverified internal email alias. Student ID/password login is verified through the backend and exchanged for a Firebase custom token. Parents can generate a temporary student password for recovery; it is returned once and never stored in Firestore. Student routes require an active backend-verified student-to-learner link. Profile pictures are limited to JPEG/PNG/WebP under 2 MB and served through authenticated API responses. Student learning data, dashboard feedback and teacher assignments are still sample or unpopulated data. The parent dashboard, subscription, settings, administrator and teacher pages remain demonstrations. Guardian identity verification/consent, payment processing, recording/upload, AI feedback and subscription billing are not implemented.
 
 ## Run locally
 

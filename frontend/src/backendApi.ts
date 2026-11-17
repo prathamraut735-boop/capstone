@@ -24,7 +24,7 @@ export interface ParentLearner {
   lessonProgress: { completed: number; total: number };
   practiceSubmissionStatus: string;
   teacherApprovalStatus: string;
-  studentUsername: string | null;
+  studentId: string;
   invitationExpiresAt: string | null;
 }
 
@@ -66,13 +66,20 @@ export interface ParentBooking {
 
 export interface StudentInvitation {
   code: string;
-  username: string;
+  studentId: string;
   expiresAt: string;
+}
+
+export interface StudentPasswordReset {
+  studentId: string;
+  temporaryPassword: string;
 }
 
 export interface StudentProfile {
   uid: string;
   role: "student";
+  studentId: string;
+  username: string | null;
   learnerId: string;
   firstName: string;
   preferredName: string | null;
@@ -83,8 +90,7 @@ export interface StudentProfile {
   teacherApprovalStatus: string;
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "https://capstone-gq7h.onrender.com/").replace(/\/+$/, "");
-const studentAuthEmailDomain = import.meta.env.VITE_STUDENT_AUTH_EMAIL_DOMAIN || "students.capstone-af3eb.firebaseapp.com";
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 async function apiRequest(user: User, path: string, init?: RequestInit): Promise<unknown> {
   const token = await user.getIdToken();
@@ -219,7 +225,7 @@ function parseLearner(value: unknown): ParentLearner {
     },
     practiceSubmissionStatus: requiredString(value, "practiceSubmissionStatus"),
     teacherApprovalStatus: requiredString(value, "teacherApprovalStatus"),
-    studentUsername: optionalString("studentUsername"),
+    studentId: requiredString(value, "studentId"),
     invitationExpiresAt: optionalString("invitationExpiresAt"),
   };
 }
@@ -381,18 +387,53 @@ export async function createStudentInvitation(user: User, learnerId: string): Pr
   if (!isRecord(response)) throw new Error("The API returned an invalid student invitation.");
   return {
     code: requiredString(response, "code"),
-    username: requiredString(response, "username"),
+    studentId: requiredString(response, "studentId"),
     expiresAt: requiredString(response, "expiresAt"),
   };
 }
 
-export async function activateStudentInvitation(code: string, password: string): Promise<{ username: string }> {
+export async function activateStudentInvitation(
+  code: string,
+  username: string,
+  password: string,
+): Promise<{ studentId: string; username: string }> {
   const response = await apiRequestWithoutUser("/api/v1/student-invitations/activate", {
     method: "POST",
-    body: JSON.stringify({ code, password }),
+    body: JSON.stringify({ code, username, password }),
   });
   if (!isRecord(response)) throw new Error("The API returned an invalid activation response.");
-  return { username: requiredString(response, "username") };
+  return {
+    studentId: requiredString(response, "studentId"),
+    username: requiredString(response, "username"),
+  };
+}
+
+export async function loginStudent(
+  identifier: string,
+  password: string,
+): Promise<{ customToken: string; studentId: string }> {
+  const response = await apiRequestWithoutUser("/api/v1/students/login", {
+    method: "POST",
+    body: JSON.stringify({ studentId: identifier, password }),
+  });
+  if (!isRecord(response)) throw new Error("The API returned an invalid student sign-in response.");
+  return {
+    customToken: requiredString(response, "customToken"),
+    studentId: requiredString(response, "studentId"),
+  };
+}
+
+export async function resetStudentPassword(user: User, learnerId: string): Promise<StudentPasswordReset> {
+  const response = await apiRequest(
+    user,
+    `/api/v1/users/me/children/${encodeURIComponent(learnerId)}/student-password-reset`,
+    { method: "POST" },
+  );
+  if (!isRecord(response)) throw new Error("The API returned an invalid password reset response.");
+  return {
+    studentId: requiredString(response, "studentId"),
+    temporaryPassword: requiredString(response, "temporaryPassword"),
+  };
 }
 
 async function apiRequestWithoutUser(path: string, init?: RequestInit): Promise<unknown> {
@@ -420,14 +461,6 @@ async function apiRequestWithoutUser(path: string, init?: RequestInit): Promise<
   return responseBody;
 }
 
-export function getStudentAuthEmail(username: string): string {
-  return `${username}@${studentAuthEmailDomain}`;
-}
-
-export function isStudentAuthEmail(email: string | null): boolean {
-  return email?.toLowerCase().endsWith(`@${studentAuthEmailDomain.toLowerCase()}`) ?? false;
-}
-
 export async function getStudentProfile(user: User): Promise<StudentProfile> {
   const response = await apiRequest(user, "/api/v1/students/me");
   if (!isRecord(response) || response.role !== "student" || response.uid !== user.uid) {
@@ -445,12 +478,18 @@ export async function getStudentProfile(user: User): Promise<StudentProfile> {
     throw new Error("The API returned invalid learner progress.");
   }
   const optionalName = response.preferredName;
+  const username = response.username;
+  if (username !== null && username !== undefined && typeof username !== "string") {
+    throw new Error("The API returned an invalid student username.");
+  }
   if (optionalName !== null && optionalName !== undefined && typeof optionalName !== "string") {
     throw new Error("The API returned an invalid student profile.");
   }
   return {
     uid: requiredString(response, "uid"),
     role: "student",
+    studentId: requiredString(response, "studentId"),
+    username: typeof username === "string" ? username : null,
     learnerId: requiredString(response, "learnerId"),
     firstName: requiredString(response, "firstName"),
     preferredName: typeof optionalName === "string" ? optionalName : null,
@@ -463,6 +502,15 @@ export async function getStudentProfile(user: User): Promise<StudentProfile> {
     practiceSubmissionStatus: requiredString(response, "practiceSubmissionStatus"),
     teacherApprovalStatus: requiredString(response, "teacherApprovalStatus"),
   };
+}
+
+export async function setStudentUsername(user: User, username: string): Promise<string> {
+  const response = await apiRequest(user, "/api/v1/students/me/username", {
+    method: "PUT",
+    body: JSON.stringify({ username }),
+  });
+  if (!isRecord(response)) throw new Error("The API returned an invalid username response.");
+  return requiredString(response, "username");
 }
 
 export async function getAvailableSessions(user: User): Promise<AvailableSession[]> {
