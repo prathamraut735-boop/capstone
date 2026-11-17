@@ -1,10 +1,82 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AudioLines, Check, Clock3, FileAudio2, LockKeyhole, Mic2, ShieldCheck, Upload } from "lucide-react";
 import { recentPractices } from "../../data/mockData";
 import { PageHeading, SectionTitle, StatusPill } from "../../components/UI";
+import {
+  createStudentPracticeSubmission,
+  getStudentEntitlements,
+  type StudentEntitlements,
+} from "../../backendApi";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../../firebase";
 
 export default function Practice() {
-  const [demoMessage, setDemoMessage] = useState(false);
+  const [entitlements, setEntitlements] = useState<StudentEntitlements | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let requestNumber = 0;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      requestNumber += 1;
+      const currentRequest = requestNumber;
+      if (!user) {
+        if (active) {
+          setEntitlements(null);
+          setError("Sign in to check your practice allowance.");
+          setIsLoading(false);
+        }
+        return;
+      }
+      setEntitlements(null);
+      setIsLoading(true);
+      setError("");
+      getStudentEntitlements(user)
+        .then((result) => {
+          if (active && currentRequest === requestNumber) setEntitlements(result);
+        })
+        .catch((cause: unknown) => {
+          if (active && currentRequest === requestNumber) {
+            setError(cause instanceof Error ? cause.message : "Your practice allowance could not be loaded.");
+          }
+        })
+        .finally(() => {
+          if (active && currentRequest === requestNumber) setIsLoading(false);
+        });
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  async function submitDemoPractice() {
+    const user = auth.currentUser;
+    if (!user) {
+      setError("Sign in to create a simulated practice submission.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await createStudentPracticeSubmission(user, "lesson-1");
+      setEntitlements((current) => current ? {
+        ...current,
+        practiceSubmissionsUsed: result.practiceSubmissionsUsed,
+        practiceSubmissionsRemaining: result.practiceSubmissionsRemaining,
+      } : current);
+      setMessage(`Simulated submission recorded. ${result.practiceSubmissionsRemaining} of ${result.monthlyLimit} family submissions remain this UTC month. No audio was uploaded.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The simulated practice submission could not be created.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="page-content">
       <PageHeading eyebrow="YOUR PRACTICE SPACE" title="My Practice">A calm place to try things out and share your progress with your teacher.</PageHeading>
@@ -12,14 +84,17 @@ export default function Practice() {
       <div className="practice-grid">
         <section className="panel upload-panel">
           <div className="panel-heading-icon"><span className="upload-icon"><Mic2 size={21} /></span><div><h2>Record or add a practice</h2><p>Ready when you are. It doesn't need to be perfect.</p></div></div>
-          <button className="upload-zone" type="button" onClick={() => setDemoMessage(true)}>
+          <button className="upload-zone" type="button" onClick={() => void submitDemoPractice()} disabled={isLoading || isSubmitting || !entitlements || entitlements.practiceSubmissionsRemaining === 0}>
             <span className="upload-round"><Upload size={21} /></span>
-            <strong>Audio practice demo</strong>
-            <span>This is a visual demo only. Recording and uploads are not enabled.</span>
-            <span className="upload-formats"><FileAudio2 size={14} /> Audio only <i /> Up to 4 minutes</span>
+            <strong>{isSubmitting ? "Saving demo submission…" : "Create simulated practice submission"}</strong>
+            <span>This records a demo submission against your plan allowance. Recording and audio uploads are not enabled.</span>
+            <span className="upload-formats"><FileAudio2 size={14} /> No audio is collected or uploaded</span>
           </button>
-          {demoMessage && <div className="inline-demo-message" role="status"><Check size={16} /> Demo only. No recording or files were uploaded.</div>}
-          <div className="upload-foot"><LockKeyhole size={15} /><span>Video uploads are not accepted. Your audio is private and teacher-reviewed.</span></div>
+          {isLoading && <div className="inline-demo-message" role="status">Loading your monthly practice allowance…</div>}
+          {entitlements && <div className="inline-demo-message" role="status">{entitlements.planName} Plan · {entitlements.practiceSubmissionsUsed} of {entitlements.limits.practiceSubmissionsPerMonth} family submissions used this UTC month</div>}
+          {message && <div className="inline-demo-message" role="status"><Check size={16} /> {message}</div>}
+          {error && <div className="inline-demo-message" role="alert">{error}</div>}
+          <div className="upload-foot"><LockKeyhole size={15} /><span>No audio is uploaded by this demo. Video submissions are not available.</span></div>
         </section>
         <aside className="practice-tip">
           <span className="tip-sparkle">✦</span><span className="eyebrow">A LITTLE REMINDER</span>

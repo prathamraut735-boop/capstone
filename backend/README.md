@@ -54,6 +54,12 @@ creating/returning student credentials.
 ## Parent endpoints
 
 - `GET /api/v1/users/me` — current user's profile.
+- `GET /api/v1/users/me/subscription` — return the authenticated parent's plan
+  catalog, current plan and family usage.
+- `PUT /api/v1/users/me/subscription` — confirm a simulated plan selection or
+  upgrade/downgrade using a `planId` of `free`, `standard`, or `premium`.
+- `POST /api/v1/users/me/subscription/cancel` — cancel a paid simulated plan;
+  access immediately falls back to Free.
 - `GET /api/v1/users/me/children` — list the authenticated parent's learner
   profiles, with platform-managed account, access, learning and invitation
   status.
@@ -87,6 +93,13 @@ creating/returning student credentials.
 - `GET /api/v1/students/me` — return the authenticated student's own linked
   profile. A student's access is denied if the learner is inactive or the
   account-to-learner link does not match.
+- `GET /api/v1/students/me/entitlements` — return effective plan limits and
+  current UTC-month practice usage for the student's linked family.
+- `GET /api/v1/students/me/lessons/{lesson_id}/access` — check the student's
+  server-authorized access to a published lesson.
+- `POST /api/v1/students/me/practice-submissions` — record a simulated
+  submission only if the family still has monthly allowance; no audio is
+  uploaded.
 - `PUT /api/v1/students/me/username` — let an authenticated student choose a
   username if the account predates username support.
 - `GET /api/v1/sessions` — list published future sessions with places available.
@@ -104,11 +117,43 @@ select another parent's collection. Student accounts are created only from
 parent-issued invitations, use separate Firebase credentials, and are linked
 by the backend. Parent credentials and child passwords are never shared.
 
+## Simulated subscriptions and learning limits
+
+Plan definitions are centrally managed in `app/services/subscriptions.py`:
+
+| Plan | Demonstration price | Active learners | Maximum level | Family practice submissions |
+| --- | ---: | ---: | ---: | ---: |
+| Free | £0/month | 1 | Level 1 | 3 per UTC calendar month |
+| Standard | £9.99/month | 2 | Level 2 | 10 per UTC calendar month |
+| Premium | £19.99/month | 4 | Level 4 | 25 per UTC calendar month |
+
+Practice allowances are shared across the parent's learners and do not reset
+when a plan changes during a month. Only Level 1 is currently published in the
+prototype; higher-level access stays blocked until those levels are published.
+Parents without a saved subscription receive Free Plan entitlements; confirming
+a plan selection saves the plan record.
+Creating learners checks the active count and subscription in a Firestore
+transaction. Student lesson authorization and practice submission recording
+also check the linked parent's effective plan on the server. Cancelling a paid
+plan immediately applies Free entitlements while preserving the cancelled
+subscription record for the parent dashboard.
+
+Subscription records are stored at `subscriptions/{parentUid}` and include the
+parent UID, selected plan, status, demonstration price, monthly billing cycle,
+server timestamps and a snapshot of the plan limits. Practice counters and
+simulated submission records are stored beneath the same parent's `users`
+document. These endpoints do not request card details, create recurring
+payments or connect to a payment provider.
+
 ## Session publishing and booking behavior
 
-`POST /api/v1/admin/sessions` publishes a session. It requires an administrator
-profile and accepts a title, venue, timezone-aware `startAt`/`endAt`, capacity
-and `priceCents`; prices are shown in AUD. Example:
+`POST /api/v1/admin/sessions` publishes a session. The admin sign-in and
+dashboard are available at `/admin/login` and `/admin/dashboard`; the
+dashboard accepts a title, venue, local start date/time, duration, capacity
+and price. It requires a Firebase user profile with `role: "admin"`. The
+backend accepts a title, venue, timezone-aware `startAt`/`endAt`, capacity and
+`priceCents`; prices are shown in AUD. Newly created sessions are published
+immediately and become bookable if future-dated and capacity remains. Example:
 
 ```json
 {
@@ -122,8 +167,9 @@ and `priceCents`; prices are shown in AUD. Example:
 ```
 
 The session catalog starts empty until an administrator publishes availability.
-Booking creation uses a Firestore transaction to confirm the reservation and
-decrement available capacity. Cancellation releases the place. Checkout is a
+Booking creation uses a Firestore transaction to validate an active learner
+belonging to the signed-in parent, confirm the reservation, and decrement
+available capacity. Cancellation releases the place. Checkout is a
 simulation: bookings record `paymentStatus: "simulated"` and **no money is
 charged**. A confirmed booking nevertheless reserves a real place, as the API
 does not treat simulated payment as a real payment-provider transaction.

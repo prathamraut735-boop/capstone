@@ -1,58 +1,170 @@
-import { Activity, ArrowRight, BookOpen, CircleHelp, ClipboardList, FileText, Users } from "lucide-react";
-import { Link } from "react-router-dom";
-import { DataTable, DemoNote, RolePageHeading } from "../../components/RoleUI";
-import { demoContentActivity } from "../../data/parentAdminData";
+import { useState, type FormEvent } from "react";
+import { CalendarDays, Check, Music2 } from "lucide-react";
+import { DemoNote, RolePageHeading } from "../../components/RoleUI";
+import { createAdminSession } from "../../backendApi";
+import { auth } from "../../firebase";
 
-const overviewStats = [
-  { label: "Learners", value: "24", icon: Users, color: "pink" },
-  { label: "Guardians", value: "18", icon: Users, color: "purple" },
-  { label: "Teachers", value: "6", icon: Users, color: "teal" },
-  { label: "Published lessons", value: "8", icon: BookOpen, color: "yellow" },
-];
+const defaultDuration = "45";
 
 export default function AdminDashboard() {
+  const [title, setTitle] = useState("");
+  const [venue, setVenue] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(defaultDuration);
+  const [capacity, setCapacity] = useState("12");
+  const [price, setPrice] = useState("0");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [publishedMessage, setPublishedMessage] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+      setError("Sign in with an administrator account to publish a session.");
+      return;
+    }
+
+    const startDate = new Date(startAt);
+    const duration = Number(durationMinutes);
+    const seatCount = Number(capacity);
+    const priceValue = Number(price);
+    if (
+      Number.isNaN(startDate.getTime()) ||
+      !Number.isInteger(duration) ||
+      duration < 1 ||
+      !Number.isInteger(seatCount) ||
+      seatCount < 1 ||
+      !Number.isFinite(priceValue) ||
+      priceValue < 0
+    ) {
+      setError("Enter a valid future date, duration, capacity, and non-negative price.");
+      return;
+    }
+
+    const endDate = new Date(startDate.getTime() + duration * 60_000);
+    setError("");
+    setPublishedMessage("");
+    setIsSubmitting(true);
+    try {
+      const session = await createAdminSession(user, {
+        title: title.trim(),
+        venue: venue.trim(),
+        startAt: startDate.toISOString(),
+        endAt: endDate.toISOString(),
+        capacity: seatCount,
+        priceCents: Math.round(priceValue * 100),
+      });
+      setPublishedMessage(
+        `${session.title} is published. ${session.availableSeats} places are now available for parents to book.`,
+      );
+      setTitle("");
+      setVenue("");
+      setStartAt("");
+      setDurationMinutes(defaultDuration);
+      setCapacity("12");
+      setPrice("0");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The session could not be published.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="role-content">
-      <RolePageHeading eyebrow="ADMIN OVERVIEW" title="Platform overview" description="A structured overview of example content and activity for the Toy Choir TV demo." />
-      <DemoNote>All figures and activity shown here are fictional demo data. They are not live platform statistics or security records.</DemoNote>
-      <div className="admin-stat-grid">
-        {overviewStats.map(({ label, value, icon: Icon, color }) => (
-          <div className="admin-stat-card" key={label}><span className={`admin-stat-icon ${color}`}><Icon size={18} /></span><span className="admin-stat-label">{label}</span><strong>{value}</strong><small>Demo figure</small></div>
-        ))}
-      </div>
-      <div className="admin-overview-grid">
-        <section className="role-panel admin-content-status">
-          <div className="role-panel-heading"><div><span className="eyebrow">LESSON LIBRARY</span><h2>Content status</h2></div><Link className="text-link" to="/admin/content">Manage content <ArrowRight size={14} /></Link></div>
-          <div className="admin-level-status"><span className="admin-level-number pink">01</span><span><strong>Level 1 · Sample content</strong><small>8 lesson examples available</small></span><span className="role-status status-published">Published · demo</span></div>
-          <div className="admin-level-status"><span className="admin-level-number purple">02</span><span><strong>Level 2 · Learn to Harmonise</strong><small>8 lesson slots</small></span><span className="role-status status-draft">Unpublished</span></div>
-          <div className="admin-level-status"><span className="admin-level-number teal">03</span><span><strong>Level 3 · Write & Create Your Own</strong><small>8 lesson slots</small></span><span className="role-status status-draft">Unpublished</span></div>
-          <div className="admin-level-status"><span className="admin-level-number yellow">04</span><span><strong>Level 4 · Content to be confirmed</strong><small>8 lesson slots</small></span><span className="role-status status-draft">Unpublished</span></div>
-          <p className="role-example-caption">Curriculum mapping is still subject to client confirmation.</p>
-        </section>
-        <section className="role-panel admin-queue-summary">
-          <div className="role-panel-heading"><div><span className="eyebrow">TEAM FOLLOW-UP</span><h2>Support queue</h2></div><span className="role-icon-chip yellow"><ClipboardList size={17} /></span></div>
-          <div className="queue-total"><strong>3</strong><span>sample requests</span></div>
-          <div className="queue-status-row"><span>Pending review</span><span className="role-status status-pending">1 demo</span></div>
-          <div className="queue-status-row"><span>Open</span><span className="role-status status-draft">1 demo</span></div>
-          <div className="queue-status-row"><span>Resolved</span><span className="role-status status-resolved">1 demo</span></div>
-          <Link className="text-link" to="/admin/support">Open support queue <ArrowRight size={14} /></Link>
-        </section>
-      </div>
-      <section className="role-panel admin-activity-panel">
-        <div className="role-panel-heading"><div><span className="eyebrow">EXAMPLE ACTIVITY</span><h2>Recent activity</h2></div><span className="role-icon-chip purple"><Activity size={17} /></span></div>
-        <DataTable
-          headers={["Actor", "Activity", "Record type", "Time", "Status"]}
-          rows={demoContentActivity.slice(0, 4).map((item) => [
-            <strong key="actor">{item.actor}</strong>,
-            item.action,
-            item.type,
-            item.time,
-            <span key="status" className={`role-status status-${item.status.toLowerCase()}`}>{item.status} · demo</span>,
-          ])}
-        />
-        <p className="role-example-caption"><FileText size={13} /> Visual demonstration only. This is not a real audit history.</p>
+      <RolePageHeading
+        eyebrow="ADMIN WORKSPACE"
+        title="Publish a music session"
+        description="Create an upcoming live session or workshop. Published sessions with open places appear in parent bookings."
+      />
+      <DemoNote tone="teal">
+        Publishing makes a real session record in Firestore and opens its places for parent reservations. Checkout remains simulated; no money is collected.
+      </DemoNote>
+      <section className="role-panel admin-session-publish">
+        <div className="role-panel-heading">
+          <div><span className="eyebrow">SESSION DETAILS</span><h2>New scheduled session</h2></div>
+          <span className="role-icon-chip teal"><CalendarDays size={18} /></span>
+        </div>
+        <form className="admin-session-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="form-field">
+            <span>Session title</span>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Beginner ukulele workshop"
+              maxLength={100}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Venue</span>
+            <input
+              value={venue}
+              onChange={(event) => setVenue(event.target.value)}
+              placeholder="Community music room"
+              maxLength={160}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Date and start time</span>
+            <input
+              type="datetime-local"
+              value={startAt}
+              onChange={(event) => setStartAt(event.target.value)}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Duration (minutes)</span>
+            <input
+              type="number"
+              min="1"
+              max="1440"
+              value={durationMinutes}
+              onChange={(event) => setDurationMinutes(event.target.value)}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Maximum places</span>
+            <input
+              type="number"
+              min="1"
+              max="500"
+              value={capacity}
+              onChange={(event) => setCapacity(event.target.value)}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Price per learner (AUD)</span>
+            <input
+              type="number"
+              min="0"
+              max="100000"
+              step="0.01"
+              value={price}
+              onChange={(event) => setPrice(event.target.value)}
+              required
+            />
+          </label>
+          <div className="admin-session-form-note">
+            <Music2 size={16} />
+            <span>This session will publish immediately. Parents can book one place per learner using the existing simulated checkout.</span>
+          </div>
+          {error && <p className="auth-error-message" role="alert">{error}</p>}
+          {publishedMessage && (
+            <p className="role-inline-message admin-session-success" role="status">
+              <Check size={16} /> {publishedMessage}
+            </p>
+          )}
+          <button className="button button-pink" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Publishing session..." : "Publish session"}
+          </button>
+        </form>
       </section>
-      <div className="admin-safety-foot"><CircleHelp size={16} /> Role permissions and administrative actions are not enforced by this frontend.</div>
     </div>
   );
 }

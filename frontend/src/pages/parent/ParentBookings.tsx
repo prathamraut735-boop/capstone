@@ -63,25 +63,43 @@ export default function ParentBookings() {
     }
 
     let active = true;
-    setIsLoading(true);
-    setError("");
-    Promise.all([getAvailableSessions(user), getParentLearners(user), getParentBookings(user)])
-      .then(([availableSessions, familyLearners, familyBookings]) => {
+    let requestInProgress = false;
+    async function refreshBookingData(showLoading: boolean) {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      if (showLoading) setIsLoading(true);
+      try {
+        const [availableSessions, familyLearners, familyBookings] = await Promise.all([
+          getAvailableSessions(user),
+          getParentLearners(user),
+          getParentBookings(user),
+        ]);
         if (!active) return;
+        const activeLearners = familyLearners.filter((learner) => learner.accountStatus !== "deactivated");
         setSessions(availableSessions);
-        setLearners(familyLearners);
+        setLearners(activeLearners);
         setBookings(familyBookings);
-        setSelectedLearnerId((current) => current || familyLearners[0]?.id || "");
-      })
-      .catch((loadError: unknown) => {
+        setSelectedLearnerId((current) => (
+          activeLearners.some((learner) => learner.id === current) ? current : activeLearners[0]?.id || ""
+        ));
+        setError("");
+      } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "Unable to load booking information.");
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
+      } finally {
+        requestInProgress = false;
+        if (active && showLoading) setIsLoading(false);
+      }
+    }
+
+    setError("");
+    void refreshBookingData(true);
+    const refreshTimer = window.setInterval(() => {
+      void refreshBookingData(false);
+    }, 15_000);
 
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
     };
   }, [isAuthReady, user, refreshVersion]);
 
@@ -131,13 +149,12 @@ export default function ParentBookings() {
         title="Bookings"
         description="Browse published sessions, reserve a place, and manage your family bookings."
       />
-      <div className="role-demo-note role-note-teal">
+      {/* <div className="role-demo-note role-note-teal">
         <CalendarDays size={17} />
         <span>
-          Checkout uses a payment simulation only. No money is charged, but completing checkout confirms a
-          booking and reserves an available place.
+          These are scheduled live sessions, not pre-recorded lessons. Confirming simulated checkout creates a real booking and reserves a place; no money is charged. Session availability and booking history refresh automatically.
         </span>
-      </div>
+      </div> */}
 
       {!isAuthReady || isLoading ? (
         <section className="role-panel"><p>Loading sessions and bookings...</p></section>
@@ -234,7 +251,7 @@ export default function ParentBookings() {
                     </>
                   ) : (
                     <div className="booking-no-learners">
-                      <p>Add a nickname-only learner profile before booking a session.</p>
+                      <p>Add or reactivate a learner profile before booking a session.</p>
                       <Link className="button button-outline" to="/parent/children">Manage learner profiles</Link>
                     </div>
                   )}

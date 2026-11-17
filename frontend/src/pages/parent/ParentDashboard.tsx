@@ -2,15 +2,22 @@ import { ArrowRight, CalendarDays, CreditCard, Heart, MessageCircle, Music2, Spa
 import { Link } from "react-router-dom";
 import { demoChildren, demoSessions, demoTeacherFeedback } from "../../data/parentAdminData";
 import { DemoNote, RolePageHeading } from "../../components/RoleUI";
+import { useParentSubscription } from "../../hooks/useParentSubscription";
+
+function formatPrice(priceCents: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(priceCents / 100);
+}
 
 export default function ParentDashboard() {
   const feedback = demoTeacherFeedback[0];
   const session = demoSessions[0];
+  const { overview, loading: subscriptionLoading, error: subscriptionError } = useParentSubscription();
+  const currentPlan = overview?.plans.find((plan) => plan.id === overview.subscription.effectivePlanId);
 
   return (
     <div className="role-content">
       <RolePageHeading eyebrow="FAMILY SPACE" title="Welcome to your family dashboard" description="A quick look at your family's music learning journey." />
-      <DemoNote>Everything on this page is fictional demo information. There are no linked learner accounts or live bookings.</DemoNote>
+      <DemoNote>Learner progress, feedback and booking cards below are sample data. Subscription access is managed by this prototype; no payment is processed.</DemoNote>
 
       <section className="family-welcome-card">
         <div className="family-welcome-copy">
@@ -55,8 +62,18 @@ export default function ParentDashboard() {
 
         <section className="role-panel subscription-preview">
           <div className="role-panel-heading"><div><span className="eyebrow">ONLINE LEARNING</span><h2>Subscription</h2></div><span className="role-icon-chip yellow"><CreditCard size={17} /></span></div>
-          <div className="subscription-status-row"><span className="status-dot status-dot-yellow" /><strong>Illustrative demo status</strong></div>
-          <p>Pricing and payment options are pending confirmation.</p>
+          {subscriptionLoading && <p>Loading plan…</p>}
+          {subscriptionError && <p className="subscription-error" role="alert">{subscriptionError}</p>}
+          {currentPlan && overview && (
+            <>
+              <div className="subscription-status-row"><span className={`status-dot ${overview.subscription.status === "active" ? "status-dot-green" : "status-dot-yellow"}`} /><strong>{currentPlan.name} · {formatPrice(currentPlan.priceCents)}/month</strong></div>
+              <p>{overview.subscription.activeLearnerCount} of {overview.subscription.limits.maxLearners} active learners</p>
+              <ul className="subscription-dashboard-features">
+                {currentPlan.features.map((feature) => <li key={feature}>{feature}</li>)}
+              </ul>
+              {overview.subscription.status === "cancelled" && <span className="role-sample-label">Previous plan cancelled · Free access active</span>}
+            </>
+          )}
           <Link to="/parent/subscription" className="button button-outline">Manage subscription <ArrowRight size={15} /></Link>
         </section>
       </div>

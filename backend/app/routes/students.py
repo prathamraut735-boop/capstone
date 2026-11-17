@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from firebase_admin import auth as firebase_auth
@@ -14,6 +15,7 @@ from app.schemas import (
     StudentActivation,
     StudentLoginRequest,
     StudentLoginResponse,
+    StudentPracticeSubmission,
     StudentProfile,
     StudentUsernameResponse,
     StudentUsernameUpdate,
@@ -27,6 +29,13 @@ from app.services.students import (
     _student_username_ref,
     _transaction_read,
     learner_data_name,
+)
+from app.services.subscriptions import (
+    LESSON_LEVELS,
+    PUBLISHED_LEARNING_LEVEL_IDS,
+    current_month_key,
+    effective_plan_id,
+    get_plan,
 )
 
 logger = logging.getLogger("toy_choir_api")
@@ -423,3 +432,236 @@ def get_my_student_profile(
         practiceSubmissionStatus=learner.get("practiceSubmissionStatus", "none"),
         teacherApprovalStatus=learner.get("teacherApprovalStatus", "not_requested"),
     )
+
+
+def _student_plan_and_usage(database: Any, parent_id: str) -> tuple[dict[str, Any], int, str]:
+    subscription_snapshot = database.collection("subscriptions").document(parent_id).get()
+    subscription = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+    plan = get_plan(effective_plan_id(subscription))
+    month_key = current_month_key()
+    usage_snapshot = (
+        database.collection("users")
+        .document(parent_id)
+        .collection("practiceUsage")
+        .document(month_key)
+        .get()
+    )
+    usage = usage_snapshot.to_dict() or {}
+    submissions_used = usage.get("submissionCount", 0)
+    if not isinstance(submissions_used, int) or submissions_used < 0:
+        raise ValueError("The stored practice usage count is invalid.")
+    return plan, submissions_used, month_key
+
+
+@router.get("/api/v1/students/me/entitlements")
+def get_my_learning_entitlements(
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> dict[str, Any]:
+    _, account, _ = authenticated
+    try:
+        plan, submissions_used, month_key = _student_plan_and_usage(
+            request.app.state.firestore_client,
+            account["parentId"],
+        )
+        remaining = max(0, plan["practiceSubmissionsPerMonth"] - submissions_used)
+        return {
+            "planId": plan["id"],
+            "planName": plan["name"],
+            "status": "active",
+            "limits": {
+                "maxLearners": plan["maxLearners"],
+                "maxLearningLevel": plan["maxLearningLevel"],
+                "practiceSubmissionsPerMonth": plan["practiceSubmissionsPerMonth"],
+            },
+            "practiceSubmissionsUsed": submissions_used,
+            "practiceSubmissionsRemaining": remaining,
+            "practiceMonth": month_key,
+            "publishedLearningLevelIds": sorted(PUBLISHED_LEARNING_LEVEL_IDS),
+        }
+    except (GoogleAPICallError, FirebaseError):
+        logger.exception("Student entitlement lookup failed.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Learning access is temporarily unavailable.",
+        ) from None
+    except ValueError:
+        logger.exception("Stored student entitlement data is invalid.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Learning access is temporarily unavailable.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected student entitlement lookup failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to retrieve learning access.",
+        ) from None
+
+
+@router.get("/api/v1/students/me/lessons/{lesson_id}/access")
+def check_my_lesson_access(
+    lesson_id: str,
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> dict[str, Any]:
+    _, account, _ = authenticated
+    level_id = LESSON_LEVELS.get(lesson_id)
+    if level_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found.")
+    try:
+        subscription_snapshot = (
+            request.app.state.firestore_client.collection("subscriptions")
+            .document(account["parentId"])
+            .get()
+        )
+        subscription = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+        plan = get_plan(effective_plan_id(subscription))
+        if level_id not in PUBLISHED_LEARNING_LEVEL_IDS:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This learning level has not been published.",
+            )
+        if level_id > plan["maxLearningLevel"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"The {plan['name']} Plan does not include this learning level.",
+            )
+        return {"lessonId": lesson_id, "levelId": level_id, "allowed": True}
+    except HTTPException:
+        raise
+    except (GoogleAPICallError, FirebaseError):
+        logger.exception("Student lesson entitlement lookup failed.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lesson access is temporarily unavailable.",
+        ) from None
+    except ValueError:
+        logger.exception("Stored lesson entitlement data is invalid.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Lesson access is temporarily unavailable.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected student lesson authorization failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to verify lesson access.",
+        ) from None
+
+
+@router.post("/api/v1/students/me/practice-submissions", status_code=status.HTTP_201_CREATED)
+def create_my_practice_submission(
+    submission: StudentPracticeSubmission,
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> dict[str, Any]:
+    user, account, _ = authenticated
+    level_id = LESSON_LEVELS.get(submission.lessonId)
+    if level_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found.")
+    if level_id not in PUBLISHED_LEARNING_LEVEL_IDS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Practice submissions are unavailable for unpublished lessons.",
+        )
+
+    database = request.app.state.firestore_client
+    parent_id = account["parentId"]
+    month_key = current_month_key()
+    subscription_ref = database.collection("subscriptions").document(parent_id)
+    usage_ref = (
+        database.collection("users")
+        .document(parent_id)
+        .collection("practiceUsage")
+        .document(month_key)
+    )
+    submission_id = uuid4().hex
+    practice_ref = (
+        database.collection("users")
+        .document(parent_id)
+        .collection("practiceSubmissions")
+        .document(submission_id)
+    )
+    now = datetime.now(timezone.utc)
+
+    @cloud_firestore.transactional
+    def record_submission(transaction: Any) -> tuple[dict[str, Any], int]:
+        subscription_snapshot = _transaction_read(transaction, subscription_ref)
+        subscription = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+        plan = get_plan(effective_plan_id(subscription))
+        if level_id > plan["maxLearningLevel"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"The {plan['name']} Plan does not include this learning level.",
+            )
+        usage_snapshot = _transaction_read(transaction, usage_ref)
+        usage = usage_snapshot.to_dict() if usage_snapshot.exists else {}
+        submissions_used = usage.get("submissionCount", 0)
+        if not isinstance(submissions_used, int) or submissions_used < 0:
+            raise ValueError("The stored practice usage count is invalid.")
+        limit = plan["practiceSubmissionsPerMonth"]
+        if submissions_used >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"The {plan['name']} Plan's {limit} monthly practice submissions have been used.",
+            )
+        next_count = submissions_used + 1
+        transaction.set(
+            usage_ref,
+            {
+                "parentId": parent_id,
+                "month": month_key,
+                "submissionCount": next_count,
+                "updatedAt": cloud_firestore.SERVER_TIMESTAMP,
+            },
+        )
+        transaction.set(
+            practice_ref,
+            {
+                "parentId": parent_id,
+                "learnerId": account["learnerId"],
+                "studentUid": user["uid"],
+                "lessonId": submission.lessonId,
+                "planId": plan["id"],
+                "month": month_key,
+                "status": "simulated",
+                "createdAt": cloud_firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return plan, next_count
+
+    try:
+        plan, submissions_used = record_submission(database.transaction())
+        return {
+            "id": submission_id,
+            "lessonId": submission.lessonId,
+            "status": "simulated",
+            "submittedAt": now.isoformat(),
+            "practiceSubmissionsUsed": submissions_used,
+            "practiceSubmissionsRemaining": max(
+                0, plan["practiceSubmissionsPerMonth"] - submissions_used
+            ),
+            "monthlyLimit": plan["practiceSubmissionsPerMonth"],
+            "practiceMonth": month_key,
+        }
+    except HTTPException:
+        raise
+    except (GoogleAPICallError, FirebaseError):
+        logger.exception("Practice submission could not be recorded.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Practice submissions are temporarily unavailable.",
+        ) from None
+    except ValueError:
+        logger.exception("Stored practice submission data is invalid.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Practice submissions are temporarily unavailable.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected practice submission failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to record the practice submission.",
+        ) from None

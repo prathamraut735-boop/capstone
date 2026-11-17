@@ -20,6 +20,7 @@ from app.schemas import (
     StudentPasswordResetResponse,
 )
 from app.services.learners import _learner_response
+from app.services.subscriptions import effective_plan_id, get_plan
 from app.services.students import (
     _ensure_student_id,
     _next_student_id,
@@ -107,9 +108,25 @@ def create_my_child(
     learner_ref = (
         database.collection("users").document(current_user["uid"]).collection("children").document(learner_id)
     )
+    subscription_ref = database.collection("subscriptions").document(current_user["uid"])
+    children_ref = database.collection("users").document(current_user["uid"]).collection("children")
 
     @cloud_firestore.transactional
     def create_learner(transaction: Any) -> str:
+        subscription_snapshot = _transaction_read(transaction, subscription_ref)
+        subscription_data = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+        plan = get_plan(effective_plan_id(subscription_data))
+        existing_children = transaction.get(children_ref)
+        active_learners = sum(
+            1
+            for child in existing_children
+            if (child.to_dict() or {}).get("status", "active") == "active"
+        )
+        if active_learners >= plan["maxLearners"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"The {plan['name']} Plan allows up to {plan['maxLearners']} active learner(s). Upgrade your plan to add another learner.",
+            )
         student_id, counter_ref, sequence, student_id_ref, _ = _next_student_id(transaction, database)
         transaction.set(counter_ref, {"lastSequence": sequence})
         transaction.set(

@@ -1,19 +1,73 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleHelp, Clock3, Play, Sparkles } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { sampleLessons } from "../../data/mockData";
 import { PageHeading } from "../../components/UI";
+import { checkStudentLessonAccess } from "../../backendApi";
+import { auth } from "../../firebase";
 
 export default function LessonDetail() {
   const { lessonId } = useParams();
   const lesson = sampleLessons.find((item) => item.id === lessonId);
   const [viewed, setViewed] = useState(lesson?.status === "complete");
+  const [accessMessage, setAccessMessage] = useState("Checking your plan access…");
+  const [authorizedLessonId, setAuthorizedLessonId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!lessonId || !lesson) {
+      setAccessMessage("This lesson is not available.");
+      setAuthorizedLessonId(null);
+      return () => { active = false; };
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      setAccessMessage("Sign in to verify access to this lesson.");
+      setAuthorizedLessonId(null);
+      return () => { active = false; };
+    }
+
+    setAccessMessage("Checking your plan access…");
+    setAuthorizedLessonId(null);
+    checkStudentLessonAccess(user, lessonId)
+      .then(() => {
+        if (active) setAuthorizedLessonId(lessonId);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setAccessMessage(cause instanceof Error ? cause.message : "Lesson access could not be verified.");
+        }
+      });
+
+    return () => { active = false; };
+  }, [lesson, lessonId]);
 
   if (!lesson) {
     return (
       <div className="page-content">
         <PageHeading eyebrow="LESSON" title="Lesson not available">This lesson may not have been published yet.</PageHeading>
         <div className="unpublished-banner detail-unpublished"><CircleHelp size={22} /><div><strong>There's nothing to watch just yet</strong><p>Only sample Level 1 lessons are available in this demo.</p></div></div>
+        <Link className="button button-outline" to="/student/lessons"><ArrowLeft size={16} /> Back to My Lessons</Link>
+      </div>
+    );
+  }
+
+  if (authorizedLessonId !== lessonId) {
+    return (
+      <div className="page-content">
+        <PageHeading
+          eyebrow="LESSON ACCESS"
+          title={accessMessage === "Checking your plan access…" ? "Checking your learning access" : "Lesson access unavailable"}
+        >
+          {accessMessage}
+        </PageHeading>
+        {accessMessage !== "Checking your plan access…" && (
+          <div className="unpublished-banner detail-unpublished" role="alert">
+            <CircleHelp size={22} />
+            <div><strong>This lesson is not available with the current access</strong><p>{accessMessage}</p></div>
+          </div>
+        )}
         <Link className="button button-outline" to="/student/lessons"><ArrowLeft size={16} /> Back to My Lessons</Link>
       </div>
     );

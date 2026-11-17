@@ -36,8 +36,8 @@ export default function Login() {
       );
       const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
       await saveUserProfile(credential.user);
-      await getCurrentUserProfile(credential.user);
-      navigate("/parent/dashboard", { replace: true });
+      const profile = await getCurrentUserProfile(credential.user);
+      navigate(profile.role === "admin" ? "/admin/dashboard" : "/parent/dashboard", { replace: true });
     } catch (error) {
       setAuthError(getFirebaseAuthErrorMessage(error));
     } finally {
@@ -77,6 +77,7 @@ export default function Login() {
           <button className="button button-pink auth-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Log in"} {!isSubmitting && <ArrowRight size={16} />}</button>
         </form>
         <p className="auth-switch">New to Toy Choir TV? <Link to="/signup">Create a parent account</Link></p>
+        <p className="auth-switch"><Link to="/admin/login">Administrator sign in</Link></p>
         <Link className="auth-back" to="/"><ArrowLeft size={15} /> Back to home</Link>
       </div>
     </section>

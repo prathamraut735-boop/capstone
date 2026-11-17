@@ -36,7 +36,7 @@ export default function RoleDashboardLayout({ role, title, navigation, variant }
 
     try {
       await signOut(auth);
-      navigate("/login", { replace: true });
+      navigate(variant === "admin" ? "/admin/login" : "/login", { replace: true });
     } catch (error) {
       setLogoutError(getFirebaseAuthErrorMessage(error));
     } finally {

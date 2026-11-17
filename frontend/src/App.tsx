@@ -5,6 +5,7 @@ import PublicLayout from "./layouts/PublicLayout";
 import StudentLayout from "./layouts/StudentLayout";
 import TeacherLayout from "./layouts/TeacherLayout";
 import Landing from "./pages/public/Landing";
+import AdminLogin from "./pages/public/AdminLogin";
 import ForgotPassword from "./pages/public/ForgotPassword";
 import Login from "./pages/public/Login";
 import NotFound from "./pages/public/NotFound";
@@ -23,11 +24,6 @@ import ParentBookings from "./pages/parent/ParentBookings";
 import ParentSubscription from "./pages/parent/ParentSubscription";
 import ParentSettings from "./pages/parent/ParentSettings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import UserManagement from "./pages/admin/UserManagement";
-import ContentManagement from "./pages/admin/ContentManagement";
-import Entitlements from "./pages/admin/Entitlements";
-import SupportQueue from "./pages/admin/SupportQueue";
-import AuditLogs from "./pages/admin/AuditLogs";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import TeacherLearners from "./pages/teacher/TeacherLearners";
 import TeacherReviews from "./pages/teacher/TeacherReviews";
@@ -42,6 +38,7 @@ export default function App() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/student/login" element={<StudentLogin />} />
@@ -59,7 +56,7 @@ export default function App() {
         <Route path="profile" element={<Profile />} />
       </Route>
 
-      {/* Role workspaces are frontend demonstrations, not access controls. */}
+      {/* Backend role checks remain authoritative for protected actions. */}
       <Route path="/parent" element={<ParentLayout />}>
         <Route index element={<Navigate to="/parent/dashboard" replace />} />
         <Route path="dashboard" element={<ParentDashboard />} />
@@ -81,11 +78,6 @@ export default function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="content" element={<ContentManagement />} />
-        <Route path="entitlements" element={<Entitlements />} />
-        <Route path="support" element={<SupportQueue />} />
-        <Route path="audit-logs" element={<AuditLogs />} />
       </Route>
     </Routes>
   );

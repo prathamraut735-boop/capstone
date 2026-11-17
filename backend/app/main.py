@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import allowed_origins, initialize_firebase
-from app.routes import health, parent, profile, sessions, students
+from app.routes import health, parent, profile, sessions, students, subscriptions
 
 
 @asynccontextmanager
@@ -25,4 +25,5 @@ app.include_router(health.router)
 app.include_router(profile.router)
 app.include_router(parent.router)
 app.include_router(students.router)
+app.include_router(subscriptions.router)
 app.include_router(sessions.router)

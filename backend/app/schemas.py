@@ -96,6 +96,12 @@ class LearnerUpdate(BaseModel):
             raise ValueError("Learning interests cannot contain duplicates.")
         return value
 
+class SubscriptionPlanChange(BaseModel):
+    planId: Literal["free", "standard", "premium"]
+
+class StudentPracticeSubmission(BaseModel):
+    lessonId: str = Field(min_length=1, max_length=80)
+
 class StudentInvitation(BaseModel):
     code: str
     studentId: str

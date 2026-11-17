@@ -125,11 +125,26 @@ def create_my_booking(
         learner_data = learner_snapshot.to_dict() or {}
         if session_data.get("status") != "published":
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+        if learner_data.get("status", "active") != "active":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only active learner profiles can be booked.",
+            )
         if session_data.get("startAt") <= created_at:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This session has already started.")
         available_seats = session_data.get("availableSeats", 0)
         if available_seats <= 0:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This session is fully booked.")
+        learner_name = (
+            learner_data.get("preferredName")
+            or learner_data.get("nickname")
+            or learner_data.get("firstName")
+        )
+        if not isinstance(learner_name, str) or not learner_name.strip():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The learner profile does not have a name for the booking.",
+            )
 
         booking_data = {
             "sessionId": booking.sessionId,
@@ -138,7 +153,7 @@ def create_my_booking(
             "startAt": session_data["startAt"],
             "endAt": session_data["endAt"],
             "learnerId": booking.learnerId,
-            "learnerNickname": learner_data["nickname"],
+            "learnerNickname": learner_name.strip(),
             "status": "confirmed",
             "paymentStatus": "simulated",
             "amountCents": session_data["priceCents"],

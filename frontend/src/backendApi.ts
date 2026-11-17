@@ -48,6 +48,15 @@ export interface AvailableSession {
   currency: string;
 }
 
+export interface AdminSessionInput {
+  title: string;
+  venue: string;
+  startAt: string;
+  endAt: string;
+  capacity: number;
+  priceCents: number;
+}
+
 export interface ParentBooking {
   id: string;
   sessionId: string;
@@ -88,6 +97,58 @@ export interface StudentProfile {
   lessonProgress: { completed: number; total: number };
   practiceSubmissionStatus: string;
   teacherApprovalStatus: string;
+}
+
+export interface SubscriptionLimits {
+  maxLearners: number;
+  maxLearningLevel: number;
+  practiceSubmissionsPerMonth: number;
+}
+
+export interface SubscriptionPlan {
+  id: "free" | "standard" | "premium";
+  name: string;
+  priceCents: number;
+  currency: "GBP";
+  billingCycle: "monthly";
+  maxLearners: number;
+  maxLearningLevel: number;
+  practiceSubmissionsPerMonth: number;
+  features: string[];
+}
+
+export interface ParentSubscription {
+  parentId: string;
+  isPersisted: boolean;
+  planId: SubscriptionPlan["id"];
+  effectivePlanId: SubscriptionPlan["id"];
+  status: "active" | "cancelled";
+  priceCents: number;
+  currency: "GBP";
+  billingCycle: "monthly";
+  startedAt: string | null;
+  cancelledAt: string | null;
+  updatedAt: string | null;
+  planLimits: SubscriptionLimits;
+  limits: SubscriptionLimits;
+  activeLearnerCount: number;
+  practiceSubmissionsUsed: number;
+  practiceSubmissionsRemaining: number;
+}
+
+export interface ParentSubscriptionOverview {
+  plans: SubscriptionPlan[];
+  subscription: ParentSubscription;
+}
+
+export interface StudentEntitlements {
+  planId: SubscriptionPlan["id"];
+  planName: string;
+  limits: SubscriptionLimits;
+  practiceSubmissionsUsed: number;
+  practiceSubmissionsRemaining: number;
+  practiceMonth: string;
+  publishedLearningLevelIds: number[];
 }
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
@@ -148,6 +209,92 @@ function requiredNumber(record: Record<string, unknown>, key: string): number {
     throw new Error("The API returned an invalid response.");
   }
   return value;
+}
+
+function nullableString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new Error("The API returned an invalid response.");
+  return value;
+}
+
+function parseSubscriptionLimits(value: unknown): SubscriptionLimits {
+  if (!isRecord(value)) throw new Error("The API returned invalid subscription limits.");
+  return {
+    maxLearners: requiredNumber(value, "maxLearners"),
+    maxLearningLevel: requiredNumber(value, "maxLearningLevel"),
+    practiceSubmissionsPerMonth: requiredNumber(value, "practiceSubmissionsPerMonth"),
+  };
+}
+
+function parseSubscriptionPlan(value: unknown): SubscriptionPlan {
+  if (!isRecord(value)) throw new Error("The API returned an invalid subscription plan.");
+  const id = requiredString(value, "id");
+  if (id !== "free" && id !== "standard" && id !== "premium") {
+    throw new Error("The API returned an unknown subscription plan.");
+  }
+  if (
+    requiredString(value, "billingCycle") !== "monthly" ||
+    requiredString(value, "currency") !== "GBP" ||
+    !Array.isArray(value.features)
+  ) {
+    throw new Error("The API returned an invalid subscription plan.");
+  }
+  return {
+    id,
+    name: requiredString(value, "name"),
+    priceCents: requiredNumber(value, "priceCents"),
+    currency: "GBP",
+    billingCycle: "monthly",
+    maxLearners: requiredNumber(value, "maxLearners"),
+    maxLearningLevel: requiredNumber(value, "maxLearningLevel"),
+    practiceSubmissionsPerMonth: requiredNumber(value, "practiceSubmissionsPerMonth"),
+    features: value.features.map((feature: unknown) => {
+      if (typeof feature !== "string") throw new Error("The API returned an invalid subscription plan.");
+      return feature;
+    }),
+  };
+}
+
+function parseParentSubscriptionOverview(value: unknown): ParentSubscriptionOverview {
+  if (!isRecord(value) || !Array.isArray(value.plans) || !isRecord(value.subscription)) {
+    throw new Error("The API returned invalid subscription information.");
+  }
+  const subscription = value.subscription;
+  const planId = requiredString(subscription, "planId");
+  const effectivePlanId = requiredString(subscription, "effectivePlanId");
+  const status = requiredString(subscription, "status");
+  if (
+    typeof subscription.isPersisted !== "boolean" ||
+    (planId !== "free" && planId !== "standard" && planId !== "premium") ||
+    (effectivePlanId !== "free" && effectivePlanId !== "standard" && effectivePlanId !== "premium") ||
+    (status !== "active" && status !== "cancelled") ||
+    requiredString(subscription, "currency") !== "GBP" ||
+    requiredString(subscription, "billingCycle") !== "monthly"
+  ) {
+    throw new Error("The API returned an invalid subscription.");
+  }
+  return {
+    plans: value.plans.map(parseSubscriptionPlan),
+    subscription: {
+      parentId: requiredString(subscription, "parentId"),
+      isPersisted: subscription.isPersisted,
+      planId,
+      effectivePlanId,
+      status,
+      priceCents: requiredNumber(subscription, "priceCents"),
+      currency: "GBP",
+      billingCycle: "monthly",
+      startedAt: nullableString(subscription, "startedAt"),
+      cancelledAt: nullableString(subscription, "cancelledAt"),
+      updatedAt: nullableString(subscription, "updatedAt"),
+      planLimits: parseSubscriptionLimits(subscription.planLimits),
+      limits: parseSubscriptionLimits(subscription.limits),
+      activeLearnerCount: requiredNumber(subscription, "activeLearnerCount"),
+      practiceSubmissionsUsed: requiredNumber(subscription, "practiceSubmissionsUsed"),
+      practiceSubmissionsRemaining: requiredNumber(subscription, "practiceSubmissionsRemaining"),
+    },
+  };
 }
 
 function parseAccountStatus(value: string): ParentLearner["accountStatus"] {
@@ -295,6 +442,40 @@ export async function getParentLearners(user: User): Promise<ParentLearner[]> {
   const responseBody = await apiRequest(user, "/api/v1/users/me/children");
   if (!Array.isArray(responseBody)) throw new Error("The API returned invalid learner profiles.");
   return responseBody.map(parseLearner);
+}
+
+export async function getParentSubscription(user: User): Promise<ParentSubscriptionOverview> {
+  const overview = parseParentSubscriptionOverview(await apiRequest(user, "/api/v1/users/me/subscription"));
+  if (overview.subscription.parentId !== user.uid) {
+    throw new Error("The API returned a subscription for a different parent.");
+  }
+  return overview;
+}
+
+export async function changeParentSubscription(
+  user: User,
+  planId: SubscriptionPlan["id"],
+): Promise<ParentSubscriptionOverview> {
+  const overview = parseParentSubscriptionOverview(
+    await apiRequest(user, "/api/v1/users/me/subscription", {
+      method: "PUT",
+      body: JSON.stringify({ planId }),
+    }),
+  );
+  if (overview.subscription.parentId !== user.uid) {
+    throw new Error("The API returned a subscription for a different parent.");
+  }
+  return overview;
+}
+
+export async function cancelParentSubscription(user: User): Promise<ParentSubscriptionOverview> {
+  const overview = parseParentSubscriptionOverview(
+    await apiRequest(user, "/api/v1/users/me/subscription/cancel", { method: "POST" }),
+  );
+  if (overview.subscription.parentId !== user.uid) {
+    throw new Error("The API returned a subscription for a different parent.");
+  }
+  return overview;
 }
 
 export async function createParentLearner(user: User, learner: ParentLearnerInput): Promise<ParentLearner> {
@@ -513,10 +694,73 @@ export async function setStudentUsername(user: User, username: string): Promise<
   return requiredString(response, "username");
 }
 
+export async function getStudentEntitlements(user: User): Promise<StudentEntitlements> {
+  const response = await apiRequest(user, "/api/v1/students/me/entitlements");
+  if (!isRecord(response) || !Array.isArray(response.publishedLearningLevelIds)) {
+    throw new Error("The API returned invalid learning entitlements.");
+  }
+  const planId = requiredString(response, "planId");
+  if (planId !== "free" && planId !== "standard" && planId !== "premium") {
+    throw new Error("The API returned an unknown subscription plan.");
+  }
+  const publishedLearningLevelIds = response.publishedLearningLevelIds.map((levelId: unknown) => {
+    if (typeof levelId !== "number" || !Number.isInteger(levelId)) {
+      throw new Error("The API returned invalid learning entitlements.");
+    }
+    return levelId;
+  });
+  return {
+    planId,
+    planName: requiredString(response, "planName"),
+    limits: parseSubscriptionLimits(response.limits),
+    practiceSubmissionsUsed: requiredNumber(response, "practiceSubmissionsUsed"),
+    practiceSubmissionsRemaining: requiredNumber(response, "practiceSubmissionsRemaining"),
+    practiceMonth: requiredString(response, "practiceMonth"),
+    publishedLearningLevelIds,
+  };
+}
+
+export async function checkStudentLessonAccess(user: User, lessonId: string): Promise<void> {
+  const response = await apiRequest(
+    user,
+    `/api/v1/students/me/lessons/${encodeURIComponent(lessonId)}/access`,
+  );
+  if (!isRecord(response) || response.lessonId !== lessonId || response.allowed !== true) {
+    throw new Error("The API returned invalid lesson authorization.");
+  }
+}
+
+export async function createStudentPracticeSubmission(
+  user: User,
+  lessonId: string,
+): Promise<{ practiceSubmissionsUsed: number; practiceSubmissionsRemaining: number; monthlyLimit: number }> {
+  const response = await apiRequest(user, "/api/v1/students/me/practice-submissions", {
+    method: "POST",
+    body: JSON.stringify({ lessonId }),
+  });
+  if (!isRecord(response) || requiredString(response, "status") !== "simulated") {
+    throw new Error("The API returned an invalid practice submission.");
+  }
+  return {
+    practiceSubmissionsUsed: requiredNumber(response, "practiceSubmissionsUsed"),
+    practiceSubmissionsRemaining: requiredNumber(response, "practiceSubmissionsRemaining"),
+    monthlyLimit: requiredNumber(response, "monthlyLimit"),
+  };
+}
+
 export async function getAvailableSessions(user: User): Promise<AvailableSession[]> {
   const responseBody = await apiRequest(user, "/api/v1/sessions");
   if (!Array.isArray(responseBody)) throw new Error("The API returned invalid session availability.");
   return responseBody.map(parseSession);
+}
+
+export async function createAdminSession(user: User, session: AdminSessionInput): Promise<AvailableSession> {
+  return parseSession(
+    await apiRequest(user, "/api/v1/admin/sessions", {
+      method: "POST",
+      body: JSON.stringify(session),
+    }),
+  );
 }
 
 export async function getParentBookings(user: User): Promise<ParentBooking[]> {
