@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { User } from "firebase/auth";
 import { CalendarDays, Check, MapPin, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -57,15 +58,15 @@ export default function ParentBookings() {
 
   useEffect(() => {
     if (!isAuthReady) return;
-    const currentUser = user;
-    if (!currentUser) {
+    if (user === null) {
       setIsLoading(false);
       return;
     }
+    const authenticatedUser: User = user;
 
     let active = true;
     let requestInProgress = false;
-    async function refreshBookingData(showLoading: boolean) {
+    async function refreshBookingData(currentUser: User, showLoading: boolean) {
       if (requestInProgress) return;
       requestInProgress = true;
       if (showLoading) setIsLoading(true);
@@ -93,9 +94,9 @@ export default function ParentBookings() {
     }
 
     setError("");
-    void refreshBookingData(true);
+    void refreshBookingData(authenticatedUser, true);
     const refreshTimer = window.setInterval(() => {
-      void refreshBookingData(false);
+      void refreshBookingData(authenticatedUser, false);
     }, 15_000);
 
     return () => {

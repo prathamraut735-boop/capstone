@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { User } from "firebase/auth";
 import { getStudentBookings, type ParentBooking } from "../backendApi";
 import useCurrentUser from "../useCurrentUser";
 
@@ -11,17 +12,17 @@ export function useStudentBookings() {
 
   useEffect(() => {
     if (!isAuthReady) return;
-    const currentUser = user;
-    if (!currentUser) {
+    if (user === null) {
       setBookings([]);
       setLoading(false);
       setError("");
       return;
     }
+    const authenticatedUser: User = user;
 
     let active = true;
     let requestInProgress = false;
-    async function refresh(showLoading: boolean) {
+    async function refresh(currentUser: User, showLoading: boolean) {
       if (requestInProgress) return;
       requestInProgress = true;
       if (showLoading) setLoading(true);
@@ -41,8 +42,8 @@ export function useStudentBookings() {
       }
     }
 
-    void refresh(true);
-    const timer = window.setInterval(() => void refresh(false), 15_000);
+    void refresh(authenticatedUser, true);
+    const timer = window.setInterval(() => void refresh(authenticatedUser, false), 15_000);
     return () => {
       active = false;
       window.clearInterval(timer);
