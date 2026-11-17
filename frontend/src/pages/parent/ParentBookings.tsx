@@ -57,7 +57,8 @@ export default function ParentBookings() {
 
   useEffect(() => {
     if (!isAuthReady) return;
-    if (!user) {
+    const currentUser = user;
+    if (!currentUser) {
       setIsLoading(false);
       return;
     }
@@ -70,9 +71,9 @@ export default function ParentBookings() {
       if (showLoading) setIsLoading(true);
       try {
         const [availableSessions, familyLearners, familyBookings] = await Promise.all([
-          getAvailableSessions(user),
-          getParentLearners(user),
-          getParentBookings(user),
+          getAvailableSessions(currentUser),
+          getParentLearners(currentUser),
+          getParentBookings(currentUser),
         ]);
         if (!active) return;
         const activeLearners = familyLearners.filter((learner) => learner.accountStatus !== "deactivated");

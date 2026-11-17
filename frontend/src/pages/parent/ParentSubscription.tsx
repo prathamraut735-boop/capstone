@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Check, CircleHelp, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
-import { DemoNote, RolePageHeading } from "../../components/RoleUI";
+import { Check, CircleHelp, ShieldCheck, Sparkles } from "lucide-react";
+import { RolePageHeading } from "../../components/RoleUI";
 import {
   cancelParentSubscription,
   changeParentSubscription,

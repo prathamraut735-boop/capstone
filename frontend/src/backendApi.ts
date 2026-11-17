@@ -152,7 +152,7 @@ export interface StudentEntitlements {
   publishedLearningLevelIds: number[];
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "https://capstone-gq7h.onrender.com").replace(/\/+$/, "");
 
 async function apiRequest(user: User, path: string, init?: RequestInit): Promise<unknown> {
   const token = await user.getIdToken();

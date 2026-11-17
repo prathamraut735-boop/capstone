@@ -11,7 +11,8 @@ export function useStudentBookings() {
 
   useEffect(() => {
     if (!isAuthReady) return;
-    if (!user) {
+    const currentUser = user;
+    if (!currentUser) {
       setBookings([]);
       setLoading(false);
       setError("");
@@ -25,7 +26,7 @@ export function useStudentBookings() {
       requestInProgress = true;
       if (showLoading) setLoading(true);
       try {
-        const result = await getStudentBookings(user);
+        const result = await getStudentBookings(currentUser);
         if (active) {
           setBookings(result);
           setError("");
