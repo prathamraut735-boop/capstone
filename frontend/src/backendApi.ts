@@ -1,4 +1,5 @@
 import type { User } from "firebase/auth";
+import type { StudentLesson, StudentLessonCatalog } from "./types";
 
 export interface UserProfile {
   uid: string;
@@ -730,6 +731,62 @@ export async function checkStudentLessonAccess(user: User, lessonId: string): Pr
   }
 }
 
+function parseStudentLesson(value: unknown): StudentLesson {
+  if (!isRecord(value)) throw new Error("The API returned an invalid lesson.");
+  const status = requiredString(value, "status");
+  if (status !== "complete" && status !== "available") {
+    throw new Error("The API returned an invalid lesson status.");
+  }
+  return {
+    id: requiredString(value, "id"),
+    levelId: requiredNumber(value, "levelId"),
+    title: requiredString(value, "title"),
+    description: requiredString(value, "description"),
+    instrument: requiredString(value, "instrument"),
+    duration: requiredString(value, "duration"),
+    status,
+  };
+}
+
+function parseStudentLessonCatalog(value: unknown): StudentLessonCatalog {
+  if (!isRecord(value) || !Array.isArray(value.lessons) || !isRecord(value.progress)) {
+    throw new Error("The API returned an invalid lesson catalog.");
+  }
+  return {
+    lessons: value.lessons.map(parseStudentLesson),
+    progress: {
+      completed: requiredNumber(value.progress, "completed"),
+      total: requiredNumber(value.progress, "total"),
+    },
+  };
+}
+
+export async function getStudentLessons(user: User): Promise<StudentLessonCatalog> {
+  return parseStudentLessonCatalog(await apiRequest(user, "/api/v1/students/me/lessons"));
+}
+
+export async function completeStudentLesson(
+  user: User,
+  lessonId: string,
+): Promise<{ completedLessons: number; totalLessons: number }> {
+  const response = await apiRequest(
+    user,
+    `/api/v1/students/me/lessons/${encodeURIComponent(lessonId)}/complete`,
+    { method: "POST" },
+  );
+  if (
+    !isRecord(response) ||
+    requiredString(response, "lessonId") !== lessonId ||
+    requiredString(response, "status") !== "complete"
+  ) {
+    throw new Error("The API returned an invalid lesson completion.");
+  }
+  return {
+    completedLessons: requiredNumber(response, "completedLessons"),
+    totalLessons: requiredNumber(response, "totalLessons"),
+  };
+}
+
 export async function createStudentPracticeSubmission(
   user: User,
   lessonId: string,
@@ -766,6 +823,12 @@ export async function createAdminSession(user: User, session: AdminSessionInput)
 export async function getParentBookings(user: User): Promise<ParentBooking[]> {
   const responseBody = await apiRequest(user, "/api/v1/users/me/bookings");
   if (!Array.isArray(responseBody)) throw new Error("The API returned invalid booking history.");
+  return responseBody.map(parseBooking);
+}
+
+export async function getStudentBookings(user: User): Promise<ParentBooking[]> {
+  const responseBody = await apiRequest(user, "/api/v1/students/me/bookings");
+  if (!Array.isArray(responseBody)) throw new Error("The API returned invalid session bookings.");
   return responseBody.map(parseBooking);
 }
 

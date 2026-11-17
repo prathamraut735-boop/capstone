@@ -109,6 +109,19 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a58ef0; outline-offs
 .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
 .section-title h2 { margin: 0; font-family: "Fredoka", sans-serif; font-size: 17px; font-weight: 600; }
 .text-link { display: inline-flex; align-items: center; gap: 5px; color: var(--pink); font-size: 10px; font-weight: 700; }
+.student-lesson-empty { padding: 14px 4px; color: var(--muted); font-size: 11px; }
+.student-lesson-error { margin: 8px 0; color: #b42318; font-size: 10px; line-height: 1.5; }
+.student-lesson-text-button { padding: 0; color: var(--purple); border: 0; background: transparent; font-size: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.student-lesson-text-button:disabled { cursor: wait; }
+.button:disabled { cursor: wait; opacity: .65; }
+.student-sessions-panel { margin: 19px 0; }
+.student-session-row { padding: 12px 0; border-top: 1px solid #f1eff4; }
+.student-session-heading { display: flex; align-items: center; gap: 9px; }
+.student-session-heading > svg { flex: 0 0 auto; color: var(--purple); }
+.student-session-heading > strong { flex: 1; font-size: 11px; }
+.student-session-row p { display: flex; align-items: center; gap: 5px; margin: 7px 0 0 27px; color: #77748e; font-size: 10px; }
+.student-session-row p svg { flex: 0 0 auto; }
+.student-session-row small { display: block; margin: 5px 0 0 27px; color: #9692a2; font-size: 9px; }
 .lesson-list { display: grid; }
 .lesson-card { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 4px; border-bottom: 1px solid #f1eff4; }
 .lesson-card:last-child { border-bottom: 0; }

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import firestore as cloud_firestore
 
-from app.dependencies import get_authenticated_admin, get_authenticated_parent
+from app.dependencies import get_authenticated_admin, get_authenticated_parent, get_authenticated_student
 from app.schemas import Booking, BookingCreate, Session, SessionCreate
 from app.services.students import _transaction_read
 
@@ -209,6 +209,39 @@ def list_my_bookings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to retrieve booking history.",
         ) from None
+
+
+@router.get("/api/v1/students/me/bookings", response_model=list[Booking])
+def list_my_student_bookings(
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> list[Booking]:
+    _, account, _ = authenticated
+    bookings = (
+        request.app.state.firestore_client.collection("users")
+        .document(account["parentId"])
+        .collection("bookings")
+    )
+    try:
+        records = [
+            Booking(id=snapshot.id, **data)
+            for snapshot in bookings.stream()
+            if (data := snapshot.to_dict() or {}).get("learnerId") == account["learnerId"]
+        ]
+        return sorted(records, key=lambda booking: booking.startAt)
+    except GoogleAPICallError:
+        logger.exception("Firestore student booking lookup failed.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Your session bookings are temporarily unavailable.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected Firestore student booking lookup failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to retrieve your session bookings.",
+        ) from None
+
 
 @router.delete(
     "/api/v1/users/me/bookings/{booking_id}",

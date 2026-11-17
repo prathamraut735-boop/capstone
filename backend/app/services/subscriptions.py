@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services.lessons import PUBLISHED_LEARNING_LEVEL_IDS
+
 
 PLAN_DEFINITIONS: dict[str, dict[str, Any]] = {
     "free": {
@@ -51,10 +53,6 @@ PLAN_DEFINITIONS: dict[str, dict[str, Any]] = {
         ],
     },
 }
-
-PUBLISHED_LEARNING_LEVEL_IDS = {1}
-LESSON_LEVELS = {f"lesson-{lesson_number}": 1 for lesson_number in range(1, 9)}
-
 
 def get_plan(plan_id: str) -> dict[str, Any]:
     plan = PLAN_DEFINITIONS.get(plan_id)

@@ -4,8 +4,18 @@ export type Lesson = {
   description: string;
   instrument: string;
   duration: string;
-  status: "complete" | "in-progress" | "locked";
+  status: "complete" | "in-progress" | "available" | "locked";
 };
+
+export interface StudentLesson extends Omit<Lesson, "status"> {
+  levelId: number;
+  status: "complete" | "available";
+}
+
+export interface StudentLessonCatalog {
+  lessons: StudentLesson[];
+  progress: { completed: number; total: number };
+}
 
 export type LearningLevel = {
   id: number;

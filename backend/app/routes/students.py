@@ -30,9 +30,8 @@ from app.services.students import (
     _transaction_read,
     learner_data_name,
 )
+from app.services.lessons import LESSON_CATALOG, LESSON_LEVELS, PUBLISHED_LEARNING_LEVEL_IDS
 from app.services.subscriptions import (
-    LESSON_LEVELS,
-    PUBLISHED_LEARNING_LEVEL_IDS,
     current_month_key,
     effective_plan_id,
     get_plan,
@@ -547,6 +546,182 @@ def check_my_lesson_access(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to verify lesson access.",
+        ) from None
+
+
+@router.get("/api/v1/students/me/lessons")
+def get_my_lessons(
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> dict[str, Any]:
+    _, account, _ = authenticated
+    database = request.app.state.firestore_client
+    parent_id = account["parentId"]
+    try:
+        subscription_snapshot = database.collection("subscriptions").document(parent_id).get()
+        subscription = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+        plan = get_plan(effective_plan_id(subscription))
+        lessons = [
+            lesson
+            for lesson in LESSON_CATALOG
+            if lesson["levelId"] in PUBLISHED_LEARNING_LEVEL_IDS
+            and lesson["levelId"] <= plan["maxLearningLevel"]
+        ]
+        learner_id = account["learnerId"]
+        progress_snapshots = (
+            database.collection("users")
+            .document(parent_id)
+            .collection("children")
+            .document(learner_id)
+            .collection("lessonProgress")
+            .stream()
+        )
+        completed_ids = {
+            snapshot.id
+            for snapshot in progress_snapshots
+            if (snapshot.to_dict() or {}).get("status") == "complete"
+        }
+        accessible_ids = {lesson["id"] for lesson in lessons}
+        completed_count = len(completed_ids & accessible_ids)
+        return {
+            "lessons": [
+                {**lesson, "status": "complete" if lesson["id"] in completed_ids else "available"}
+                for lesson in lessons
+            ],
+            "progress": {"completed": completed_count, "total": len(lessons)},
+        }
+    except (GoogleAPICallError, FirebaseError):
+        logger.exception("Student lesson catalog lookup failed.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Your lessons are temporarily unavailable.",
+        ) from None
+    except ValueError:
+        logger.exception("Stored student lesson entitlement data is invalid.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Your lessons are temporarily unavailable.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected student lesson catalog lookup failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to retrieve your lessons.",
+        ) from None
+
+
+@router.post("/api/v1/students/me/lessons/{lesson_id}/complete")
+def complete_my_lesson(
+    lesson_id: str,
+    request: Request,
+    authenticated: tuple[dict[str, Any], dict[str, Any], dict[str, Any]] = Depends(get_authenticated_student),
+) -> dict[str, Any]:
+    _, account, _ = authenticated
+    level_id = LESSON_LEVELS.get(lesson_id)
+    if level_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found.")
+
+    database = request.app.state.firestore_client
+    parent_id = account["parentId"]
+    learner_id = account["learnerId"]
+    try:
+        subscription_ref = database.collection("subscriptions").document(parent_id)
+        subscription_snapshot = subscription_ref.get()
+        subscription = subscription_snapshot.to_dict() if subscription_snapshot.exists else None
+        plan = get_plan(effective_plan_id(subscription))
+        if level_id not in PUBLISHED_LEARNING_LEVEL_IDS:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This learning level has not been published.",
+            )
+        if level_id > plan["maxLearningLevel"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"The {plan['name']} Plan does not include this learning level.",
+            )
+
+        learner_ref = (
+            database.collection("users")
+            .document(parent_id)
+            .collection("children")
+            .document(learner_id)
+        )
+        progress_collection = learner_ref.collection("lessonProgress")
+        progress_ref = progress_collection.document(lesson_id)
+
+        @cloud_firestore.transactional
+        def persist_completion(transaction: Any) -> int:
+            progress_snapshot = _transaction_read(transaction, progress_ref)
+            learner_snapshot = _transaction_read(transaction, learner_ref)
+            if not learner_snapshot.exists:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learner profile not found.")
+
+            learner_data = learner_snapshot.to_dict() or {}
+            existing_progress = learner_data.get("lessonProgress", {})
+            if not isinstance(existing_progress, dict):
+                raise ValueError("The stored lesson progress summary is invalid.")
+            completed_count = existing_progress.get("completed", 0)
+            total = existing_progress.get("total", 32)
+            if (
+                not isinstance(completed_count, int)
+                or isinstance(completed_count, bool)
+                or completed_count < 0
+                or not isinstance(total, int)
+                or isinstance(total, bool)
+                or total < len(LESSON_CATALOG)
+                or completed_count > total
+            ):
+                raise ValueError("The stored lesson progress summary is invalid.")
+
+            already_complete = (
+                progress_snapshot.exists
+                and (progress_snapshot.to_dict() or {}).get("status") == "complete"
+            )
+            next_count = max(completed_count, 1) if already_complete else completed_count + 1
+            if not already_complete:
+                transaction.set(
+                    progress_ref,
+                    {
+                        "lessonId": lesson_id,
+                        "status": "complete",
+                        "completedAt": cloud_firestore.SERVER_TIMESTAMP,
+                    },
+                )
+            transaction.update(
+                learner_ref,
+                {
+                    "lessonProgress": {"completed": next_count, "total": total},
+                    "updatedAt": cloud_firestore.SERVER_TIMESTAMP,
+                },
+            )
+            return next_count
+
+        completed_count = persist_completion(database.transaction())
+        return {
+            "lessonId": lesson_id,
+            "status": "complete",
+            "completedLessons": completed_count,
+            "totalLessons": len(LESSON_CATALOG),
+        }
+    except HTTPException:
+        raise
+    except (GoogleAPICallError, FirebaseError):
+        logger.exception("Student lesson completion could not be saved.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lesson progress could not be saved. Please try again.",
+        ) from None
+    except ValueError:
+        logger.exception("Stored student lesson progress data or transaction is invalid.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Lesson progress could not be saved.",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected student lesson completion failure.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to save lesson progress.",
         ) from None
 
 

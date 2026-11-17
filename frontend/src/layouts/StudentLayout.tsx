@@ -8,6 +8,7 @@ import { auth } from "../firebase";
 
 const pageTitles: Record<string, string> = {
   "/student/dashboard": "Dashboard",
+  "/student/sessions": "My Sessions",
   "/student/lessons": "My Lessons",
   "/student/practice": "My Practice",
   "/student/progress": "My Progress",

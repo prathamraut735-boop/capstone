@@ -95,8 +95,13 @@ creating/returning student credentials.
   account-to-learner link does not match.
 - `GET /api/v1/students/me/entitlements` — return effective plan limits and
   current UTC-month practice usage for the student's linked family.
+- `GET /api/v1/students/me/lessons` — list published lessons allowed by the
+  student's plan together with saved completion status.
 - `GET /api/v1/students/me/lessons/{lesson_id}/access` — check the student's
   server-authorized access to a published lesson.
+- `POST /api/v1/students/me/lessons/{lesson_id}/complete` — persist completion
+  for an accessible lesson using a Firestore transaction. Repeating the request
+  does not count the lesson more than once.
 - `POST /api/v1/students/me/practice-submissions` — record a simulated
   submission only if the family still has monthly allowance; no audio is
   uploaded.
@@ -106,6 +111,8 @@ creating/returning student credentials.
 - `POST /api/v1/users/me/bookings` — reserve a session place for one of the
   guardian's learner profiles.
 - `GET /api/v1/users/me/bookings` — list the guardian's bookings.
+- `GET /api/v1/students/me/bookings` — list bookings for the authenticated
+  student's linked learner profile only.
 - `DELETE /api/v1/users/me/bookings/{booking_id}` — cancel a future booking
   and release its place.
 
@@ -130,6 +137,10 @@ Plan definitions are centrally managed in `app/services/subscriptions.py`:
 Practice allowances are shared across the parent's learners and do not reset
 when a plan changes during a month. Only Level 1 is currently published in the
 prototype; higher-level access stays blocked until those levels are published.
+Published lesson definitions are maintained in `app/services/lessons.py`.
+Completion records are stored under each linked learner's
+`lessonProgress/{lessonId}` subcollection, and the learner's summary progress is
+updated in the same transaction.
 Parents without a saved subscription receive Free Plan entitlements; confirming
 a plan selection saves the plan record.
 Creating learners checks the active count and subscription in a Firestore

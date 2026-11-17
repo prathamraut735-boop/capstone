@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import {
   BookOpen,
+  CalendarDays,
   ChevronRight,
   CircleUserRound,
   GraduationCap,
@@ -13,6 +14,7 @@ import {
 
 const navigation = [
   { label: "Dashboard", to: "/student/dashboard", icon: GraduationCap },
+  { label: "My Sessions", to: "/student/sessions", icon: CalendarDays },
   { label: "My Lessons", to: "/student/lessons", icon: BookOpen },
   { label: "My Practice", to: "/student/practice", icon: Music2 },
   { label: "My Progress", to: "/student/progress", icon: Sparkles },

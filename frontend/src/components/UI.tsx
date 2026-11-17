@@ -23,7 +23,13 @@ export function SectionTitle({ title, action, to }: { title: string; action?: st
 }
 
 export function LessonCard({ lesson, compact = false }: { lesson: Lesson; compact?: boolean }) {
-  const stateLabel = lesson.status === "complete" ? "Completed" : lesson.status === "in-progress" ? "In progress" : "Up next";
+  const stateLabel = lesson.status === "complete"
+    ? "Completed"
+    : lesson.status === "in-progress"
+      ? "In progress"
+      : lesson.status === "available"
+        ? "Available"
+        : "Up next";
   return (
     <Link className={`lesson-card ${compact ? "lesson-card-compact" : ""}`} to={`/student/lessons/${lesson.id}`}>
       <span className={`lesson-icon lesson-icon-${lesson.status}`}><Play size={18} fill="currentColor" /></span>

@@ -1,31 +1,35 @@
 import { useState } from "react";
 import { Check, CircleHelp, LockKeyhole, ShieldCheck, Sparkles, Star, TrendingUp } from "lucide-react";
-import { learningLevels, sampleLessons } from "../../data/mockData";
+import { learningLevels } from "../../data/mockData";
 import { PageHeading, SectionTitle, StatusPill, StatCard } from "../../components/UI";
+import { useStudentLessons } from "../../hooks/useStudentLessons";
 
 export default function Progress() {
   const [showNote, setShowNote] = useState(false);
+  const { lessons, progress, loading, error } = useStudentLessons();
+  const progressPercent = progress.total ? Math.round((progress.completed / progress.total) * 100) : 0;
+  const levelOneComplete = progress.total > 0 && progress.completed === progress.total;
   return (
     <div className="page-content">
-      <PageHeading eyebrow="LOOK HOW FAR YOU'VE COME" title="My Progress">Every try counts. Keep exploring and enjoy the journey!</PageHeading>
+      <PageHeading eyebrow="LOOK HOW FAR YOU'VE COME" title="My Progress">Your saved lesson completions, plus example practice and feedback information.</PageHeading>
       <div className="stats-grid">
-        <StatCard icon={<Check size={19} />} label="Lessons completed" value="1 of 8" detail="Level 1 sample data" color="pink" />
+        <StatCard icon={<Check size={19} />} label="Lessons completed" value={loading ? "…" : `${progress.completed} of ${progress.total}`} detail="Published lessons" color="pink" />
         <StatCard icon={<TrendingUp size={19} />} label="Practice sessions" value="3" detail="Example activity" color="teal" />
         <StatCard icon={<Star size={19} />} label="Teacher feedback" value="1 note" detail="Fictional sample" color="yellow" />
       </div>
       <section className="panel progress-level-panel">
         <SectionTitle title="Level 1 · Learn to Pitch & Play" />
-        <div className="level-progress-summary"><div><strong>You're off to a lovely start!</strong><p>Here are some example lesson markers.</p></div><StatusPill tone="purple">1 of 8 complete</StatusPill></div>
-        <div className="progress-bar large"><span style={{ width: "12.5%" }} /></div>
+        <div className="level-progress-summary"><div><strong>{levelOneComplete ? "Every published lesson is complete!" : progress.completed ? "You're making progress." : "Ready to get started?"}</strong><p>{error || "Your lesson completion is saved to your account."}</p></div><StatusPill tone="purple">{progress.completed} of {progress.total} complete</StatusPill></div>
+        <div className="progress-bar large"><span style={{ width: `${progressPercent}%` }} /></div>
         <div className="completed-lessons">
-          {sampleLessons.slice(0, 4).map((lesson) => (
+          {lessons.map((lesson) => (
             <div className={`completed-lesson ${lesson.status === "complete" ? "is-complete" : ""}`} key={lesson.id}>
               <span>{lesson.status === "complete" ? <Check size={14} /> : <span>{lesson.id.replace("lesson-", "")}</span>}</span>
               <small>{lesson.title}</small>
             </div>
           ))}
         </div>
-        <p className="example-note">Sample indicators only. Lesson completion is not saved between visits.</p>
+        {!loading && lessons.length === 0 && <p className="example-note">No published lessons are available yet.</p>}
       </section>
       <section className="approval-card">
         <span className="approval-icon"><LockKeyhole size={21} /></span>
@@ -46,8 +50,8 @@ export default function Progress() {
         <div className="overview-level-list">
           {learningLevels.map((level) => (
             <div className={`overview-level level-${level.color}`} key={level.id}>
-              <span className="overview-number">0{level.id}</span><span className="overview-title"><strong>{level.title}</strong><small>{level.id === 1 ? "Sample learning progress" : level.subtitle}</small></span>
-              {level.id === 1 ? <StatusPill tone="purple">In progress</StatusPill> : <StatusPill>Not started</StatusPill>}
+              <span className="overview-number">0{level.id}</span><span className="overview-title"><strong>{level.title}</strong><small>{level.id === 1 ? "Saved lesson progress" : level.subtitle}</small></span>
+              {level.id === 1 ? <StatusPill tone="purple">{levelOneComplete ? "Complete" : "In progress"}</StatusPill> : <StatusPill>Not published</StatusPill>}
             </div>
           ))}
         </div>

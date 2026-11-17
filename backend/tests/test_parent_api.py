@@ -396,6 +396,58 @@ def test_student_entitlements_and_practice_quota_are_enforced_by_api(
     assert student_cannot_manage.status_code == 403
 
 
+def test_student_lessons_and_completion_are_persisted_idempotently(
+    parent_client: tuple[TestClient, MemoryFirestore, dict[str, dict[str, Any]]],
+) -> None:
+    client, database, _ = parent_client
+    learner = create_learner(client, {"Authorization": "Bearer valid-token"})
+    _link_student(database, learner)
+    headers = {"Authorization": "Bearer student-token"}
+
+    lessons = client.get("/api/v1/students/me/lessons", headers=headers)
+    assert lessons.status_code == 200
+    assert len(lessons.json()["lessons"]) == 8
+    assert lessons.json()["progress"] == {"completed": 0, "total": 8}
+    assert all(lesson["status"] == "available" for lesson in lessons.json()["lessons"])
+
+    completion = client.post(
+        "/api/v1/students/me/lessons/lesson-1/complete",
+        headers=headers,
+    )
+    assert completion.status_code == 200
+    assert completion.json()["completedLessons"] == 1
+
+    repeated_completion = client.post(
+        "/api/v1/students/me/lessons/lesson-1/complete",
+        headers=headers,
+    )
+    assert repeated_completion.status_code == 200
+    assert repeated_completion.json()["completedLessons"] == 1
+    persisted_progress = (
+        database.collection("users")
+        .document("user-123")
+        .collection("children")
+        .document(learner["id"])
+        .get()
+        .to_dict()["lessonProgress"]
+    )
+    assert persisted_progress == {"completed": 1, "total": 32}
+
+    lessons_after_completion = client.get("/api/v1/students/me/lessons", headers=headers)
+    assert lessons_after_completion.status_code == 200
+    completed_lesson = next(
+        lesson for lesson in lessons_after_completion.json()["lessons"] if lesson["id"] == "lesson-1"
+    )
+    assert completed_lesson["status"] == "complete"
+    assert lessons_after_completion.json()["progress"] == {"completed": 1, "total": 8}
+
+    unknown_lesson = client.post(
+        "/api/v1/students/me/lessons/lesson-99/complete",
+        headers=headers,
+    )
+    assert unknown_lesson.status_code == 404
+
+
 def test_student_invitation_is_one_time_and_links_own_profile(
     parent_client: tuple[TestClient, MemoryFirestore, dict[str, dict[str, Any]]],
 ) -> None:
@@ -528,6 +580,33 @@ def test_booking_reserves_and_releases_capacity_for_parent_linked_learner(
     history = client.get("/api/v1/users/me/bookings", headers=headers)
     assert history.status_code == 200
     assert [item["id"] for item in history.json()] == [booking.json()["id"]]
+
+    _link_student(database, learner)
+    student_bookings = client.get(
+        "/api/v1/students/me/bookings",
+        headers={"Authorization": "Bearer student-token"},
+    )
+    assert student_bookings.status_code == 200
+    assert [item["id"] for item in student_bookings.json()] == [booking.json()["id"]]
+
+    sibling_booking = {
+        key: value
+        for key, value in booking.json().items()
+        if key != "id"
+    }
+    sibling_booking["learnerId"] = "another-learner"
+    database.collection("users").document("user-123").collection("bookings").document(
+        "sibling-booking"
+    ).set(sibling_booking)
+    own_bookings_only = client.get(
+        "/api/v1/students/me/bookings",
+        headers={"Authorization": "Bearer student-token"},
+    )
+    assert own_bookings_only.status_code == 200
+    assert [item["id"] for item in own_bookings_only.json()] == [booking.json()["id"]]
+
+    parent_cannot_use_student_endpoint = client.get("/api/v1/students/me/bookings", headers=headers)
+    assert parent_cannot_use_student_endpoint.status_code == 403
 
     overbooked = client.post(
         "/api/v1/users/me/bookings",

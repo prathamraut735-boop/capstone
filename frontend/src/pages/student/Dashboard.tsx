@@ -1,7 +1,22 @@
-import { ArrowRight, AudioLines, Check, Music2, Play, Sparkles, Star } from "lucide-react";
+import { ArrowRight, AudioLines, CalendarDays, Check, Music2, Play, Sparkles, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import { recentPractices, sampleLessons } from "../../data/mockData";
+import { recentPractices } from "../../data/mockData";
 import { LessonCard, SectionTitle, StatusPill } from "../../components/UI";
+import { useStudentBookings } from "../../hooks/useStudentBookings";
+import { useStudentLessons } from "../../hooks/useStudentLessons";
+
+function formatSessionDate(startAt: string, endAt: string) {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  const date = new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(start);
+  const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${date} · ${time.format(start)}–${time.format(end)}`;
+}
 
 const journey = [
   { label: "Watch", detail: "Learn something new", icon: Play, color: "pink" },
@@ -11,6 +26,19 @@ const journey = [
 ];
 
 export default function Dashboard() {
+  const { lessons, progress, loading, error, reload } = useStudentLessons();
+  const {
+    bookings,
+    loading: bookingsLoading,
+    error: bookingsError,
+    reload: reloadBookings,
+  } = useStudentBookings();
+  const nextLesson = lessons.find((lesson) => lesson.status !== "complete");
+  const progressPercent = progress.total ? Math.round((progress.completed / progress.total) * 100) : 0;
+  const upcomingBookings = bookings.filter(
+    (booking) => booking.status === "confirmed" && new Date(booking.startAt).getTime() > Date.now(),
+  );
+
   return (
     <div className="page-content">
       <section className="welcome-banner">
@@ -47,27 +75,56 @@ export default function Dashboard() {
         <section className="panel lessons-panel">
           <SectionTitle title="My Lessons" action="All lessons" to="/student/lessons" />
           <div className="lesson-list">
-            {sampleLessons.slice(0, 3).map((lesson) => <LessonCard key={lesson.id} lesson={lesson} />)}
+            {loading && <p className="student-lesson-empty">Loading your lessons…</p>}
+            {error && <p className="student-lesson-error" role="alert">{error} <button className="student-lesson-text-button" type="button" onClick={reload}>Try again</button></p>}
+            {!loading && !error && lessons.length === 0 && <p className="student-lesson-empty">No lessons are published yet.</p>}
+            {!loading && !error && lessons.slice(0, 3).map((lesson) => <LessonCard key={lesson.id} lesson={lesson} />)}
           </div>
         </section>
 
         <div className="dashboard-side">
           <section className="continue-card">
             <div className="continue-top"><span className="continue-tag"><Play size={12} fill="currentColor" /> PICK UP WHERE YOU LEFT OFF</span><span className="continue-illustration">♫</span></div>
-            <h2>Keep a steady beat</h2>
-            <p>Your next little step is ready when you are.</p>
-            <div className="continue-progress"><span><i /></span><small>Part 2 of 4</small></div>
-            <Link to="/student/lessons/lesson-2" className="button button-pink">Continue learning <ArrowRight size={16} /></Link>
+            <h2>{nextLesson ? nextLesson.title : progress.total > 0 ? "All lessons complete!" : "Your next lesson"}</h2>
+            <p>{nextLesson ? "Your next little step is ready when you are." : "Explore published lessons whenever you’re ready."}</p>
+            <div className="continue-progress"><span><i style={{ width: `${progressPercent}%` }} /></span><small>{progress.completed} of {progress.total} complete</small></div>
+            <Link to={nextLesson ? `/student/lessons/${nextLesson.id}` : "/student/lessons"} className="button button-pink">
+              {nextLesson ? "Continue learning" : "View my lessons"} <ArrowRight size={16} />
+            </Link>
           </section>
 
           <section className="panel mini-progress">
             <SectionTitle title="My progress" action="See more" to="/student/progress" />
-            <div className="progress-summary"><div className="progress-ring"><span><strong>1</strong><small>of 8</small></span></div><div><strong>Lovely progress!</strong><p>You're finding your rhythm.</p></div></div>
-            <div className="progress-bar"><span style={{ width: "12.5%" }} /></div>
-            <div className="progress-foot"><span>Level 1 sample progress</span><StatusPill tone="purple">Teacher-guided</StatusPill></div>
+            <div className="progress-summary"><div className="progress-ring"><span><strong>{progress.completed}</strong><small>of {progress.total}</small></span></div><div><strong>{loading ? "Loading progress…" : "Your learning journey"}</strong><p>{error || `${progressPercent}% of published lessons complete.`}</p></div></div>
+            <div className="progress-bar"><span style={{ width: `${progressPercent}%` }} /></div>
+            <div className="progress-foot"><span>Saved lesson progress</span><StatusPill tone="purple">Teacher-guided</StatusPill></div>
           </section>
         </div>
       </div>
+
+      <section className="panel student-sessions-panel">
+        <SectionTitle title="My sessions" action="All sessions" to="/student/sessions" />
+        {bookingsLoading && <p className="student-lesson-empty">Loading your sessions…</p>}
+        {bookingsError && (
+          <p className="student-lesson-error" role="alert">
+            {bookingsError} <button className="student-lesson-text-button" type="button" onClick={reloadBookings}>Try again</button>
+          </p>
+        )}
+        {!bookingsLoading && !bookingsError && upcomingBookings.length === 0 && (
+          <p className="student-lesson-empty">No upcoming sessions are booked for you yet.</p>
+        )}
+        {!bookingsLoading && !bookingsError && upcomingBookings.slice(0, 2).map((booking) => (
+          <article className="student-session-row" key={booking.id}>
+            <div className="student-session-heading">
+              <CalendarDays size={18} />
+              <strong>{booking.sessionTitle}</strong>
+              <StatusPill tone="green">Confirmed</StatusPill>
+            </div>
+            <p>{formatSessionDate(booking.startAt, booking.endAt)}</p>
+            <small>{booking.venue} · Payment simulated, no charge</small>
+          </article>
+        ))}
+      </section>
 
       <section className="panel recent-panel">
         <SectionTitle title="Recent practice" action="Go to practice" to="/student/practice" />

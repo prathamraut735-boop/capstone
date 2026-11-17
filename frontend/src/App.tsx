@@ -15,6 +15,7 @@ import StudentActivate from "./pages/public/StudentActivate";
 import Dashboard from "./pages/student/Dashboard";
 import LessonDetail from "./pages/student/LessonDetail";
 import Lessons from "./pages/student/Lessons";
+import StudentBookings from "./pages/student/StudentBookings";
 import Practice from "./pages/student/Practice";
 import Profile from "./pages/student/Profile";
 import Progress from "./pages/student/Progress";
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="/student" element={<StudentLayout />}>
         <Route index element={<Navigate to="/student/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="sessions" element={<StudentBookings />} />
         <Route path="lessons" element={<Lessons />} />
         <Route path="lessons/:lessonId" element={<LessonDetail />} />
         <Route path="practice" element={<Practice />} />

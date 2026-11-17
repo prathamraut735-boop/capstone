@@ -1,73 +1,49 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleHelp, Clock3, Play, Sparkles } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { sampleLessons } from "../../data/mockData";
 import { PageHeading } from "../../components/UI";
-import { checkStudentLessonAccess } from "../../backendApi";
-import { auth } from "../../firebase";
+import { completeStudentLesson } from "../../backendApi";
+import { useStudentLessons } from "../../hooks/useStudentLessons";
 
 export default function LessonDetail() {
   const { lessonId } = useParams();
-  const lesson = sampleLessons.find((item) => item.id === lessonId);
-  const [viewed, setViewed] = useState(lesson?.status === "complete");
-  const [accessMessage, setAccessMessage] = useState("Checking your plan access…");
-  const [authorizedLessonId, setAuthorizedLessonId] = useState<string | null>(null);
+  const { user, lessons, loading, error, reload } = useStudentLessons();
+  const lesson = lessons.find((item) => item.id === lessonId);
+  const [saving, setSaving] = useState(false);
+  const [completionError, setCompletionError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    if (!lessonId || !lesson) {
-      setAccessMessage("This lesson is not available.");
-      setAuthorizedLessonId(null);
-      return () => { active = false; };
+  async function markComplete() {
+    if (!user || !lessonId || lesson?.status === "complete") return;
+    setSaving(true);
+    setCompletionError("");
+    try {
+      await completeStudentLesson(user, lessonId);
+      reload();
+    } catch (cause: unknown) {
+      setCompletionError(cause instanceof Error ? cause.message : "Lesson progress could not be saved.");
+    } finally {
+      setSaving(false);
     }
+  }
 
-    const user = auth.currentUser;
-    if (!user) {
-      setAccessMessage("Sign in to verify access to this lesson.");
-      setAuthorizedLessonId(null);
-      return () => { active = false; };
-    }
+  if (loading) {
+    return <div className="page-content"><PageHeading eyebrow="LESSON" title="Loading your lesson">Checking published lessons and saved progress…</PageHeading></div>;
+  }
 
-    setAccessMessage("Checking your plan access…");
-    setAuthorizedLessonId(null);
-    checkStudentLessonAccess(user, lessonId)
-      .then(() => {
-        if (active) setAuthorizedLessonId(lessonId);
-      })
-      .catch((cause: unknown) => {
-        if (active) {
-          setAccessMessage(cause instanceof Error ? cause.message : "Lesson access could not be verified.");
-        }
-      });
-
-    return () => { active = false; };
-  }, [lesson, lessonId]);
-
-  if (!lesson) {
+  if (error) {
     return (
       <div className="page-content">
-        <PageHeading eyebrow="LESSON" title="Lesson not available">This lesson may not have been published yet.</PageHeading>
-        <div className="unpublished-banner detail-unpublished"><CircleHelp size={22} /><div><strong>There's nothing to watch just yet</strong><p>Only sample Level 1 lessons are available in this demo.</p></div></div>
-        <Link className="button button-outline" to="/student/lessons"><ArrowLeft size={16} /> Back to My Lessons</Link>
+        <PageHeading eyebrow="LESSON" title="Your lesson could not be loaded">{error}</PageHeading>
+        <button className="button button-outline" type="button" onClick={reload}>Try again</button>
       </div>
     );
   }
 
-  if (authorizedLessonId !== lessonId) {
+  if (!lesson) {
     return (
       <div className="page-content">
-        <PageHeading
-          eyebrow="LESSON ACCESS"
-          title={accessMessage === "Checking your plan access…" ? "Checking your learning access" : "Lesson access unavailable"}
-        >
-          {accessMessage}
-        </PageHeading>
-        {accessMessage !== "Checking your plan access…" && (
-          <div className="unpublished-banner detail-unpublished" role="alert">
-            <CircleHelp size={22} />
-            <div><strong>This lesson is not available with the current access</strong><p>{accessMessage}</p></div>
-          </div>
-        )}
+        <PageHeading eyebrow="LESSON" title="Lesson not available">This lesson may not be published or included in your current plan.</PageHeading>
+        <div className="unpublished-banner detail-unpublished"><CircleHelp size={22} /><div><strong>There’s nothing to learn here just yet</strong><p>Only published lessons that your plan includes can be opened.</p></div></div>
         <Link className="button button-outline" to="/student/lessons"><ArrowLeft size={16} /> Back to My Lessons</Link>
       </div>
     );
@@ -76,7 +52,7 @@ export default function LessonDetail() {
   return (
     <div className="page-content">
       <Link className="back-link" to="/student/lessons"><ArrowLeft size={16} /> Back to My Lessons</Link>
-      <PageHeading eyebrow={`LEVEL 1 · ${lesson.instrument.toUpperCase()}`} title={lesson.title}>{lesson.description}</PageHeading>
+      <PageHeading eyebrow={`LEVEL ${lesson.levelId} · ${lesson.instrument.toUpperCase()}`} title={lesson.title}>{lesson.description}</PageHeading>
       <div className="lesson-detail-grid">
         <div>
           <section className="video-placeholder">
@@ -88,7 +64,7 @@ export default function LessonDetail() {
           </section>
           <div className="lesson-detail-info">
             <div><span className="detail-icon"><Clock3 size={17} /></span><span><small>LESSON LENGTH</small><strong>{lesson.duration}</strong></span></div>
-            <div><span className="detail-icon purple"><Sparkles size={17} /></span><span><small>YOUR STATUS</small><strong>{viewed ? "Marked as viewed" : "Ready to learn"}</strong></span></div>
+            <div><span className="detail-icon purple"><Sparkles size={17} /></span><span><small>YOUR STATUS</small><strong>{lesson.status === "complete" ? "Completed" : "Ready to learn"}</strong></span></div>
           </div>
         </div>
         <div className="lesson-instructions">
@@ -99,10 +75,15 @@ export default function LessonDetail() {
             <div><span>2</span><p><strong>Try it out</strong>Pause and practise the new idea in your own time.</p></div>
             <div><span>3</span><p><strong>Have another go</strong>Little bits of practice can make a big difference.</p></div>
           </div>
-          <button className={`button ${viewed ? "button-success" : "button-pink"} button-wide`} onClick={() => setViewed(!viewed)}>
-            {viewed ? <><Check size={17} /> Marked as viewed</> : <>Mark as viewed <ArrowRight size={17} /></>}
+          {completionError && <p className="student-lesson-error" role="alert">{completionError}</p>}
+          <button className={`button ${lesson.status === "complete" ? "button-success" : "button-pink"} button-wide`} type="button" onClick={markComplete} disabled={saving || lesson.status === "complete"}>
+            {lesson.status === "complete"
+              ? <><Check size={17} /> Lesson completed</>
+              : saving
+                ? "Saving progress…"
+                : <>Mark lesson complete <ArrowRight size={17} /></>}
           </button>
-          <div className="teacher-note"><span>💌</span><p>Your teacher can guide your learning and give feedback on your practice.</p></div>
+          <div className="teacher-note"><span></span><p>Your teacher can guide your learning and give feedback on your practice.</p></div>
         </div>
       </div>
       <section className="practice-task-card">
